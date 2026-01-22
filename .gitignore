@@ -1,0 +1,37 @@
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Data artifacts
+data/*.jsonl
+data/train/
+data/validation/
+
+# Model artifacts
+models/
+*.tar.gz
+
+# AWS credentials (never commit)
+aws_credentials.yaml
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/

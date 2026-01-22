@@ -1,0 +1,279 @@
+name: Train and Register Model
+
+on:
+  workflow_dispatch:
+    inputs:
+      model_id:
+        description: 'HuggingFace model ID'
+        type: string
+        default: 'distilgpt2'
+      instance_type:
+        description: 'SageMaker instance type'
+        type: choice
+        options:
+          - ml.g4dn.xlarge
+          - ml.g4dn.2xlarge
+          - ml.g5.xlarge
+        default: 'ml.g4dn.xlarge'
+      epochs:
+        description: 'Number of training epochs'
+        type: number
+        default: 5
+      batch_size:
+        description: 'Training batch size'
+        type: number
+        default: 8
+      num_examples:
+        description: 'Number of synthetic examples to generate'
+        type: number
+        default: 500
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  S3_BUCKET: sg-finetune-${{ secrets.AWS_REGION }}
+
+jobs:
+  setup-iam:
+    name: Setup IAM Role
+    runs-on: ubuntu-latest
+    outputs:
+      role_exists: ${{ steps.check.outputs.exists }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Check if IAM role exists
+        id: check
+        run: |
+          if aws iam get-role --role-name sg-finetune-sagemaker-role 2>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "IAM role already exists"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "IAM role does not exist"
+          fi
+
+      - name: Deploy IAM role
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          aws cloudformation deploy \
+            --template-file infra/sagemaker-role.yaml \
+            --stack-name sg-finetune-iam \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset
+          echo "IAM role deployed"
+
+  train:
+    name: Train Model on SageMaker
+    runs-on: ubuntu-latest
+    needs: setup-iam
+    timeout-minutes: 60
+    outputs:
+      training_job_name: ${{ steps.train.outputs.job_name }}
+      model_artifact: ${{ steps.train.outputs.model_artifact }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install boto3 sagemaker transformers datasets torch --quiet
+
+      - name: Generate synthetic dataset
+        run: |
+          python data/generate_dataset.py \
+            --num-examples ${{ inputs.num_examples }} \
+            --output-dir data
+
+      - name: Create S3 bucket
+        run: |
+          aws s3api head-bucket --bucket $S3_BUCKET 2>/dev/null || \
+          aws s3api create-bucket \
+            --bucket $S3_BUCKET \
+            --region $AWS_REGION \
+            --create-bucket-configuration LocationConstraint=$AWS_REGION
+
+      - name: Upload training data to S3
+        run: |
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          S3_DATA_PATH="s3://$S3_BUCKET/data/$TIMESTAMP"
+
+          aws s3 cp data/train.jsonl "$S3_DATA_PATH/train.jsonl"
+          aws s3 cp data/validation.jsonl "$S3_DATA_PATH/validation.jsonl"
+
+          echo "Data uploaded to: $S3_DATA_PATH"
+          echo "s3_data_path=$S3_DATA_PATH" >> $GITHUB_ENV
+
+      - name: Start SageMaker training job
+        id: train
+        run: |
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          JOB_NAME="sg-finetune-distilgpt2-$TIMESTAMP"
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          ROLE_ARN="arn:aws:iam::$ACCOUNT_ID:role/sg-finetune-sagemaker-role"
+
+          # Get HuggingFace training image
+          IMAGE_URI="763104351884.dkr.ecr.$AWS_REGION.amazonaws.com/huggingface-pytorch-training:2.1.0-transformers4.36.0-gpu-py310-cu118-ubuntu20.04"
+
+          echo "Starting training job: $JOB_NAME"
+          echo "Role: $ROLE_ARN"
+          echo "Image: $IMAGE_URI"
+          echo "Data: $s3_data_path"
+
+          # Create training job
+          aws sagemaker create-training-job \
+            --training-job-name "$JOB_NAME" \
+            --role-arn "$ROLE_ARN" \
+            --algorithm-specification \
+              TrainingImage="$IMAGE_URI",TrainingInputMode=File \
+            --input-data-config '[{
+              "ChannelName": "training",
+              "DataSource": {
+                "S3DataSource": {
+                  "S3Uri": "'"$s3_data_path"'",
+                  "S3DataType": "S3Prefix",
+                  "S3DataDistributionType": "FullyReplicated"
+                }
+              }
+            }]' \
+            --output-data-config S3OutputPath="s3://$S3_BUCKET/models" \
+            --resource-config \
+              InstanceType=${{ inputs.instance_type }},InstanceCount=1,VolumeSizeInGB=50 \
+            --stopping-condition MaxRuntimeInSeconds=3600 \
+            --hyper-parameters '{
+              "sagemaker_program": "train.py",
+              "sagemaker_submit_directory": "s3://'"$S3_BUCKET"'/code/src.tar.gz",
+              "model_id": "${{ inputs.model_id }}",
+              "learning_rate": "2e-5",
+              "batch_size": "${{ inputs.batch_size }}",
+              "epochs": "${{ inputs.epochs }}",
+              "max_length": "128"
+            }' \
+            --region "$AWS_REGION"
+
+          # Upload source code
+          cd src && tar -czvf ../src.tar.gz . && cd ..
+          aws s3 cp src.tar.gz "s3://$S3_BUCKET/code/src.tar.gz"
+
+          echo "job_name=$JOB_NAME" >> $GITHUB_OUTPUT
+
+          # Wait for training to complete
+          echo "Waiting for training job to complete..."
+          aws sagemaker wait training-job-completed-or-stopped \
+            --training-job-name "$JOB_NAME" \
+            --region "$AWS_REGION"
+
+          # Get job status
+          STATUS=$(aws sagemaker describe-training-job \
+            --training-job-name "$JOB_NAME" \
+            --query 'TrainingJobStatus' \
+            --output text)
+
+          if [ "$STATUS" != "Completed" ]; then
+            echo "Training job failed with status: $STATUS"
+            exit 1
+          fi
+
+          # Get model artifact
+          MODEL_ARTIFACT=$(aws sagemaker describe-training-job \
+            --training-job-name "$JOB_NAME" \
+            --query 'ModelArtifacts.S3ModelArtifacts' \
+            --output text)
+
+          echo "model_artifact=$MODEL_ARTIFACT" >> $GITHUB_OUTPUT
+          echo "Training completed! Model: $MODEL_ARTIFACT"
+
+  register:
+    name: Register Model in Registry
+    runs-on: ubuntu-latest
+    needs: train
+    outputs:
+      model_package_arn: ${{ steps.register.outputs.arn }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install boto3 --quiet
+
+      - name: Register model
+        id: register
+        run: |
+          python scripts/register_model.py \
+            --region $AWS_REGION \
+            --training-job-name ${{ needs.train.outputs.training_job_name }} \
+            --group-name sg-finetune-distilgpt2 \
+            --approval-status PendingManualApproval | tee output.txt
+
+          # Extract ARN from output
+          ARN=$(grep "Model Package ARN:" output.txt | cut -d' ' -f4)
+          echo "arn=$ARN" >> $GITHUB_OUTPUT
+
+      - name: Training Summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## Training Complete
+
+          | Item | Value |
+          |------|-------|
+          | Training Job | \`${{ needs.train.outputs.training_job_name }}\` |
+          | Model Artifact | \`${{ needs.train.outputs.model_artifact }}\` |
+          | Model Package | \`${{ steps.register.outputs.arn }}\` |
+          | Status | PendingManualApproval |
+
+          ### Next Steps
+
+          1. **Approve the model** in SageMaker console or via CLI:
+             \`\`\`bash
+             aws sagemaker update-model-package \\
+               --model-package-arn ${{ steps.register.outputs.arn }} \\
+               --model-approval-status Approved \\
+               --region $AWS_REGION
+             \`\`\`
+
+          2. **Test the model** locally:
+             \`\`\`bash
+             python scripts/test_model.py --input "bon dia"
+             \`\`\`
+
+          ### Cost
+
+          Training instance: \`${{ inputs.instance_type }}\` @ ~\$0.74/hour
+          EOF
