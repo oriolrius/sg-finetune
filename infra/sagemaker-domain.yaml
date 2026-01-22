@@ -1,0 +1,537 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Complete SageMaker infrastructure for sg-finetune project.
+  Creates Domain, User Profile, Pipeline, Model Registry, and supporting resources.
+
+# =============================================================================
+# Parameters
+# =============================================================================
+Parameters:
+  ProjectName:
+    Type: String
+    Default: sg-finetune
+    Description: Project name used for resource naming
+
+  DomainName:
+    Type: String
+    Default: sg-finetune-domain
+    Description: Name for the SageMaker Domain
+
+  UserProfileName:
+    Type: String
+    Default: sg-finetune-user
+    Description: Name for the SageMaker User Profile
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC ID for SageMaker Domain
+
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Subnet IDs for SageMaker Domain (at least one required)
+
+  AuthMode:
+    Type: String
+    Default: IAM
+    AllowedValues:
+      - IAM
+      - SSO
+    Description: Authentication mode for SageMaker Domain
+
+  DefaultInstanceType:
+    Type: String
+    Default: ml.t3.medium
+    AllowedValues:
+      - ml.t3.medium
+      - ml.t3.large
+      - ml.m5.large
+      - ml.m5.xlarge
+    Description: Default instance type for JupyterLab apps
+
+  TrainingInstanceType:
+    Type: String
+    Default: ml.g4dn.xlarge
+    Description: Instance type for training jobs
+
+# =============================================================================
+# Resources
+# =============================================================================
+Resources:
+
+  # ---------------------------------------------------------------------------
+  # S3 Bucket for Training Data and Model Artifacts
+  # ---------------------------------------------------------------------------
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub '${ProjectName}-${AWS::AccountId}-${AWS::Region}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  # ---------------------------------------------------------------------------
+  # IAM Role for SageMaker Execution
+  # ---------------------------------------------------------------------------
+  SageMakerExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-sagemaker-role'
+      Description: Execution role for SageMaker Domain and training jobs
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: sagemaker.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
+      Policies:
+        - PolicyName: S3AccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:ListBucket
+                  - s3:GetBucketLocation
+                Resource:
+                  - !GetAtt S3Bucket.Arn
+                  - !Sub '${S3Bucket.Arn}/*'
+                  - !Sub 'arn:aws:s3:::sagemaker-${AWS::Region}-${AWS::AccountId}'
+                  - !Sub 'arn:aws:s3:::sagemaker-${AWS::Region}-${AWS::AccountId}/*'
+        - PolicyName: ECRAccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                Resource: '*'
+        - PolicyName: ModelRegistryPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sagemaker:CreateModelPackageGroup
+                  - sagemaker:DescribeModelPackageGroup
+                  - sagemaker:DeleteModelPackageGroup
+                  - sagemaker:CreateModelPackage
+                  - sagemaker:DescribeModelPackage
+                  - sagemaker:UpdateModelPackage
+                  - sagemaker:DeleteModelPackage
+                  - sagemaker:ListModelPackages
+                Resource: '*'
+        - PolicyName: PipelinePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sagemaker:CreatePipeline
+                  - sagemaker:UpdatePipeline
+                  - sagemaker:DeletePipeline
+                  - sagemaker:DescribePipeline
+                  - sagemaker:ListPipelines
+                  - sagemaker:StartPipelineExecution
+                  - sagemaker:StopPipelineExecution
+                  - sagemaker:DescribePipelineExecution
+                  - sagemaker:ListPipelineExecutions
+                  - sagemaker:ListPipelineExecutionSteps
+                Resource: '*'
+        - PolicyName: CloudWatchLogsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogStreams
+                Resource:
+                  - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/sagemaker/*'
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  # ---------------------------------------------------------------------------
+  # Security Group for SageMaker Domain
+  # ---------------------------------------------------------------------------
+  SageMakerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${ProjectName}-sagemaker-sg'
+      GroupDescription: Security group for SageMaker Domain
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: HTTPS access
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  # ---------------------------------------------------------------------------
+  # SageMaker Domain
+  # ---------------------------------------------------------------------------
+  SageMakerDomain:
+    Type: AWS::SageMaker::Domain
+    Properties:
+      DomainName: !Ref DomainName
+      AuthMode: !Ref AuthMode
+      VpcId: !Ref VpcId
+      SubnetIds: !Ref SubnetIds
+      DefaultUserSettings:
+        ExecutionRole: !GetAtt SageMakerExecutionRole.Arn
+        SecurityGroups:
+          - !Ref SageMakerSecurityGroup
+        SharingSettings:
+          NotebookOutputOption: Disabled
+        JupyterServerAppSettings:
+          DefaultResourceSpec:
+            InstanceType: system
+            SageMakerImageArn: !Sub 'arn:aws:sagemaker:${AWS::Region}:${AWS::AccountId}:image/jupyter-server-3'
+        KernelGatewayAppSettings:
+          DefaultResourceSpec:
+            InstanceType: !Ref DefaultInstanceType
+            SageMakerImageArn: !Sub 'arn:aws:sagemaker:${AWS::Region}:${AWS::AccountId}:image/datascience-1.0'
+      DomainSettings:
+        SecurityGroupIds:
+          - !Ref SageMakerSecurityGroup
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  # ---------------------------------------------------------------------------
+  # SageMaker User Profile
+  # ---------------------------------------------------------------------------
+  SageMakerUserProfile:
+    Type: AWS::SageMaker::UserProfile
+    DependsOn: SageMakerDomain
+    Properties:
+      DomainId: !Ref SageMakerDomain
+      UserProfileName: !Ref UserProfileName
+      UserSettings:
+        ExecutionRole: !GetAtt SageMakerExecutionRole.Arn
+        SecurityGroups:
+          - !Ref SageMakerSecurityGroup
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  # ---------------------------------------------------------------------------
+  # Model Package Group (Model Registry)
+  # ---------------------------------------------------------------------------
+  ModelPackageGroup:
+    Type: AWS::SageMaker::ModelPackageGroup
+    Properties:
+      ModelPackageGroupName: !Sub '${ProjectName}-models'
+      ModelPackageGroupDescription: !Sub 'Fine-tuned DistilGPT2 models for ${ProjectName}'
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  # ---------------------------------------------------------------------------
+  # SageMaker Pipeline
+  # ---------------------------------------------------------------------------
+  SageMakerPipeline:
+    Type: AWS::SageMaker::Pipeline
+    DependsOn:
+      - SageMakerExecutionRole
+      - S3Bucket
+      - ModelPackageGroup
+    Properties:
+      PipelineName: !Sub '${ProjectName}-pipeline'
+      PipelineDisplayName: !Sub '${ProjectName}-pipeline'
+      PipelineDescription: !Sub 'Training pipeline for ${ProjectName}: Generate Data → Train Model → Register Model'
+      RoleArn: !GetAtt SageMakerExecutionRole.Arn
+      PipelineDefinition:
+        PipelineDefinitionBody: !Sub |
+          {
+            "Version": "2020-12-01",
+            "Metadata": {},
+            "Parameters": [
+              {
+                "Name": "NumExamples",
+                "Type": "Integer",
+                "DefaultValue": 500
+              },
+              {
+                "Name": "TrainRatio",
+                "Type": "String",
+                "DefaultValue": "0.9"
+              },
+              {
+                "Name": "ModelId",
+                "Type": "String",
+                "DefaultValue": "distilgpt2"
+              },
+              {
+                "Name": "InstanceType",
+                "Type": "String",
+                "DefaultValue": "${TrainingInstanceType}"
+              },
+              {
+                "Name": "Epochs",
+                "Type": "Integer",
+                "DefaultValue": 5
+              },
+              {
+                "Name": "BatchSize",
+                "Type": "Integer",
+                "DefaultValue": 8
+              },
+              {
+                "Name": "LearningRate",
+                "Type": "String",
+                "DefaultValue": "2e-5"
+              },
+              {
+                "Name": "MaxLength",
+                "Type": "Integer",
+                "DefaultValue": 128
+              },
+              {
+                "Name": "ModelApprovalStatus",
+                "Type": "String",
+                "DefaultValue": "PendingManualApproval"
+              }
+            ],
+            "PipelineExperimentConfig": {
+              "ExperimentName": {"Get": "Execution.PipelineName"},
+              "TrialName": {"Get": "Execution.PipelineExecutionId"}
+            },
+            "Steps": [
+              {
+                "Name": "GenerateDataset",
+                "Type": "Processing",
+                "Arguments": {
+                  "ProcessingResources": {
+                    "ClusterConfig": {
+                      "InstanceType": "ml.t3.medium",
+                      "InstanceCount": 1,
+                      "VolumeSizeInGB": 10
+                    }
+                  },
+                  "AppSpecification": {
+                    "ImageUri": "763104351884.dkr.ecr.${AWS::Region}.amazonaws.com/sklearn-processing:1.2-1",
+                    "ContainerEntrypoint": ["python3", "/opt/ml/processing/input/code/preprocess.py"]
+                  },
+                  "ProcessingInputs": [
+                    {
+                      "InputName": "code",
+                      "S3Input": {
+                        "S3Uri": "s3://${S3Bucket}/${ProjectName}/pipeline/code/",
+                        "LocalPath": "/opt/ml/processing/input/code",
+                        "S3DataType": "S3Prefix",
+                        "S3InputMode": "File"
+                      }
+                    }
+                  ],
+                  "ProcessingOutputConfig": {
+                    "Outputs": [
+                      {
+                        "OutputName": "training_data",
+                        "S3Output": {
+                          "S3Uri": "s3://${S3Bucket}/${ProjectName}/pipeline/data",
+                          "LocalPath": "/opt/ml/processing/output",
+                          "S3UploadMode": "EndOfJob"
+                        }
+                      }
+                    ]
+                  },
+                  "RoleArn": "${SageMakerExecutionRole.Arn}"
+                }
+              },
+              {
+                "Name": "TrainModel",
+                "Type": "Training",
+                "DependsOn": ["GenerateDataset"],
+                "Arguments": {
+                  "AlgorithmSpecification": {
+                    "TrainingImage": "763104351884.dkr.ecr.${AWS::Region}.amazonaws.com/huggingface-pytorch-training:2.1.0-transformers4.36.0-gpu-py310-cu121-ubuntu20.04",
+                    "TrainingInputMode": "File"
+                  },
+                  "HyperParameters": {
+                    "model_id": {"Get": "Parameters.ModelId"},
+                    "epochs": {"Std:Join": ["", [{"Get": "Parameters.Epochs"}]]},
+                    "batch_size": {"Std:Join": ["", [{"Get": "Parameters.BatchSize"}]]},
+                    "learning_rate": {"Get": "Parameters.LearningRate"},
+                    "max_length": {"Std:Join": ["", [{"Get": "Parameters.MaxLength"}]]},
+                    "warmup_steps": "50",
+                    "weight_decay": "0.01",
+                    "sagemaker_program": "train.py",
+                    "sagemaker_submit_directory": "s3://${S3Bucket}/${ProjectName}/pipeline/code/src.tar.gz"
+                  },
+                  "InputDataConfig": [
+                    {
+                      "ChannelName": "training",
+                      "DataSource": {
+                        "S3DataSource": {
+                          "S3DataType": "S3Prefix",
+                          "S3Uri": {"Get": "Steps.GenerateDataset.ProcessingOutputConfig.Outputs['training_data'].S3Output.S3Uri"},
+                          "S3DataDistributionType": "FullyReplicated"
+                        }
+                      },
+                      "ContentType": "application/jsonlines"
+                    }
+                  ],
+                  "OutputDataConfig": {
+                    "S3OutputPath": "s3://${S3Bucket}/${ProjectName}/pipeline/models"
+                  },
+                  "ResourceConfig": {
+                    "InstanceType": {"Get": "Parameters.InstanceType"},
+                    "InstanceCount": 1,
+                    "VolumeSizeInGB": 50
+                  },
+                  "StoppingCondition": {
+                    "MaxRuntimeInSeconds": 3600
+                  },
+                  "RoleArn": "${SageMakerExecutionRole.Arn}"
+                }
+              },
+              {
+                "Name": "RegisterModel",
+                "Type": "RegisterModel",
+                "DependsOn": ["TrainModel"],
+                "Arguments": {
+                  "ModelPackageGroupName": "${ProjectName}-models",
+                  "InferenceSpecification": {
+                    "Containers": [
+                      {
+                        "Image": "763104351884.dkr.ecr.${AWS::Region}.amazonaws.com/huggingface-pytorch-inference:2.1.0-transformers4.37.0-cpu-py310-ubuntu22.04",
+                        "ModelDataUrl": {"Get": "Steps.TrainModel.ModelArtifacts.S3ModelArtifacts"},
+                        "Environment": {
+                          "HF_TASK": "text-generation"
+                        }
+                      }
+                    ],
+                    "SupportedContentTypes": ["application/json"],
+                    "SupportedResponseMIMETypes": ["application/json"],
+                    "SupportedRealtimeInferenceInstanceTypes": ["ml.m5.large", "ml.m5.xlarge", "ml.g4dn.xlarge"]
+                  },
+                  "ModelApprovalStatus": {"Get": "Parameters.ModelApprovalStatus"}
+                }
+              }
+            ]
+          }
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: ManagedBy
+          Value: CloudFormation
+
+# =============================================================================
+# Outputs
+# =============================================================================
+Outputs:
+  DomainId:
+    Description: SageMaker Domain ID
+    Value: !Ref SageMakerDomain
+    Export:
+      Name: !Sub '${ProjectName}-domain-id'
+
+  DomainArn:
+    Description: SageMaker Domain ARN
+    Value: !GetAtt SageMakerDomain.DomainArn
+    Export:
+      Name: !Sub '${ProjectName}-domain-arn'
+
+  DomainUrl:
+    Description: SageMaker Domain URL
+    Value: !GetAtt SageMakerDomain.Url
+    Export:
+      Name: !Sub '${ProjectName}-domain-url'
+
+  UserProfileArn:
+    Description: SageMaker User Profile ARN
+    Value: !GetAtt SageMakerUserProfile.UserProfileArn
+    Export:
+      Name: !Sub '${ProjectName}-user-profile-arn'
+
+  ExecutionRoleArn:
+    Description: SageMaker Execution Role ARN
+    Value: !GetAtt SageMakerExecutionRole.Arn
+    Export:
+      Name: !Sub '${ProjectName}-execution-role-arn'
+
+  S3BucketName:
+    Description: S3 Bucket for training data and models
+    Value: !Ref S3Bucket
+    Export:
+      Name: !Sub '${ProjectName}-s3-bucket'
+
+  S3BucketArn:
+    Description: S3 Bucket ARN
+    Value: !GetAtt S3Bucket.Arn
+    Export:
+      Name: !Sub '${ProjectName}-s3-bucket-arn'
+
+  ModelPackageGroupArn:
+    Description: Model Package Group ARN
+    Value: !GetAtt ModelPackageGroup.ModelPackageGroupArn
+    Export:
+      Name: !Sub '${ProjectName}-model-package-group-arn'
+
+  PipelineArn:
+    Description: SageMaker Pipeline ARN
+    Value: !Sub 'arn:aws:sagemaker:${AWS::Region}:${AWS::AccountId}:pipeline/${ProjectName}-pipeline'
+    Export:
+      Name: !Sub '${ProjectName}-pipeline-arn'
+
+  SecurityGroupId:
+    Description: Security Group ID for SageMaker
+    Value: !Ref SageMakerSecurityGroup
+    Export:
+      Name: !Sub '${ProjectName}-security-group-id'
+
+  StudioUrl:
+    Description: URL to access SageMaker Studio
+    Value: !Sub 'https://${AWS::Region}.console.aws.amazon.com/sagemaker/home?region=${AWS::Region}#/studio/${SageMakerDomain}'
+    Export:
+      Name: !Sub '${ProjectName}-studio-url'
+
+  PipelineConsoleUrl:
+    Description: URL to view Pipeline in console
+    Value: !Sub 'https://${AWS::Region}.console.aws.amazon.com/sagemaker/home?region=${AWS::Region}#/pipelines/${ProjectName}-pipeline'
+    Export:
+      Name: !Sub '${ProjectName}-pipeline-console-url'

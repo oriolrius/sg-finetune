@@ -38,6 +38,9 @@ sg-finetune/
 │   └── destroy.yml        # Resource cleanup workflow
 ├── data/                   # Dataset generation
 │   └── generate_dataset.py # Creates synthetic training data
+├── docs/                   # Documentation
+│   ├── sagemaker-training-quotas.md  # EC2 instance quotas for training
+│   └── sagemaker-domain-discovery.md # How to discover SageMaker resources via CLI
 ├── src/                    # SageMaker training code
 │   ├── train.py           # HuggingFace Trainer script
 │   └── requirements.txt   # Training container dependencies
@@ -45,8 +48,19 @@ sg-finetune/
 │   ├── start_training.py  # Launch SageMaker training
 │   ├── register_model.py  # Register model in registry
 │   └── test_model.py      # Download and test model locally
+├── pipeline/               # SageMaker Pipeline
+│   ├── README.md          # Pipeline documentation
+│   ├── definition.py      # Pipeline definition with steps
+│   ├── deploy_pipeline.py # Deploy pipeline to SageMaker
+│   ├── run_pipeline.py    # Execute and manage pipeline
+│   └── scripts/           # Pipeline step scripts
+│       └── preprocess.py  # Data generation for pipeline
 ├── infra/                  # Infrastructure as Code
-│   └── sagemaker-role.yaml # IAM role CloudFormation
+│   ├── README.md          # Infrastructure documentation
+│   ├── sagemaker-domain.yaml  # Complete SageMaker infrastructure (Domain, Pipeline, etc.)
+│   ├── sagemaker-role.yaml    # Standalone IAM role (legacy)
+│   ├── deploy-stack.sh    # Deploy CloudFormation stack
+│   └── destroy-stack.sh   # Destroy CloudFormation stack
 ├── pyproject.toml         # Project config and dependencies
 └── README.md              # User documentation
 ```
@@ -74,6 +88,25 @@ sg-finetune/
 ### 4. GitHub Actions
 - `train.yml`: Full pipeline (IAM setup → training → registration)
 - `destroy.yml`: Safe cleanup with confirmation required
+
+### 5. SageMaker Pipeline (`pipeline/`)
+The SageMaker Pipeline replicates the GitHub Actions workflow natively in SageMaker Studio:
+
+**Steps:**
+1. **GenerateDataset** (Processing): Creates synthetic Catalan greeting dataset
+2. **TrainModel** (Training): Fine-tunes DistilGPT2 using HuggingFace
+3. **RegisterModel** (Registry): Registers model in Model Registry
+
+**Pipeline Parameters** (configurable at execution):
+- `NumExamples`: Number of training examples (default: 500)
+- `Epochs`: Training epochs (default: 5)
+- `BatchSize`: Batch size (default: 8)
+- `InstanceType`: Training instance (default: ml.g4dn.xlarge)
+- `ModelApprovalStatus`: Approval status (default: PendingManualApproval)
+
+**View in SageMaker Studio:**
+- Pipeline Name: `sg-finetune-pipeline`
+- URL: `https://eu-north-1.console.aws.amazon.com/sagemaker/home?region=eu-north-1#/pipelines/sg-finetune-pipeline`
 
 ## Technologies
 
@@ -141,6 +174,8 @@ cz bump --dry-run                      # Preview version bump
 - IAM Role: `sg-finetune-sagemaker-role`
 - S3 Bucket: `sg-finetune-{account_id}-{region}`
 - Model Package Group: `sg-finetune-models`
+- **Available Training Instance**: `ml.g4dn.xlarge` (1x NVIDIA T4, 16GB VRAM)
+- See [`docs/sagemaker-training-quotas.md`](docs/sagemaker-training-quotas.md) for full quota details
 
 ### Data Format
 ```jsonl
@@ -175,10 +210,40 @@ python scripts/register_model.py \
 python scripts/test_model.py --model-group-name sg-finetune-models
 ```
 
+### Run SageMaker Pipeline
+```bash
+# Deploy/update pipeline
+python pipeline/deploy_pipeline.py
+
+# Execute pipeline with default parameters
+python pipeline/run_pipeline.py --action execute
+
+# Execute with custom parameters
+python pipeline/run_pipeline.py --action execute --epochs 3 --num-examples 200
+
+# Check pipeline status
+python pipeline/run_pipeline.py --action status
+
+# List recent executions
+python pipeline/run_pipeline.py --action list
+```
+
+### Deploy via CloudFormation (Recommended)
+```bash
+# Deploy complete SageMaker infrastructure (Domain, Pipeline, Model Registry)
+./infra/deploy-stack.sh
+
+# Deploy with specific VPC
+./infra/deploy-stack.sh --vpc-id vpc-12345678 --subnet-ids subnet-11111111
+
+# Destroy infrastructure
+./infra/destroy-stack.sh
+```
+
 ### Run via GitHub Actions
 Trigger `train.yml` workflow with inputs:
 - `model_id`: HuggingFace model (default: `distilgpt2`)
-- `instance_type`: `ml.g4dn.xlarge`, `ml.g4dn.2xlarge`, `ml.g5.xlarge`
+- `instance_type`: `ml.g4dn.xlarge` (only available instance - see [quotas](docs/sagemaker-training-quotas.md))
 - `epochs`: Number of training epochs (default: 5)
 - `batch_size`: Training batch size (default: 8)
 - `num_examples`: Dataset size (default: 500)
@@ -259,6 +324,8 @@ ruff format .
 6. **Clean up resources**: Use `destroy.yml` workflow to avoid lingering AWS costs
 7. **CloudFormation for IAM**: Don't manually create IAM roles; use `infra/sagemaker-role.yaml`
 8. **Credential refresh**: AWS sandbox credentials expire; use `/aws-sandbox-credentials` to refresh
+9. **Instance quotas**: Only `ml.g4dn.xlarge` is available; check [`docs/sagemaker-training-quotas.md`](docs/sagemaker-training-quotas.md) before changing instance types
+10. **Discover SageMaker resources**: Use AWS CLI commands documented in [`docs/sagemaker-domain-discovery.md`](docs/sagemaker-domain-discovery.md) to inspect domains, endpoints, and running apps
 
 ## File Modification Guidelines
 
@@ -268,9 +335,14 @@ ruff format .
 | `src/train.py` | Changing training logic, hyperparameters, or model architecture |
 | `src/requirements.txt` | Adding training container dependencies |
 | `scripts/*.py` | Modifying AWS orchestration or testing logic |
-| `infra/sagemaker-role.yaml` | Changing IAM permissions |
+| `pipeline/definition.py` | Changing pipeline steps, parameters, or flow |
+| `pipeline/scripts/*.py` | Modifying pipeline processing scripts |
+| `infra/sagemaker-domain.yaml` | Changing Domain, Pipeline, or infrastructure configuration |
+| `infra/sagemaker-role.yaml` | Changing IAM permissions (legacy, prefer sagemaker-domain.yaml) |
 | `.github/workflows/*.yml` | Modifying CI/CD pipeline |
 | `pyproject.toml` | Adding local dependencies or changing project config |
+| `docs/sagemaker-training-quotas.md` | Updating after quota changes or new instance availability |
+| `docs/sagemaker-domain-discovery.md` | Adding new CLI commands or updating resource discovery procedures |
 
 ## Troubleshooting
 
