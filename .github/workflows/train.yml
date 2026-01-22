@@ -30,7 +30,8 @@ on:
 
 env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
-  S3_BUCKET: sg-finetune-${{ secrets.AWS_REGION }}
+  # Bucket name follows pattern: sg-finetune-{account_id}-{region}
+  # Account ID is retrieved dynamically in the workflow
 
 jobs:
   setup-iam:
@@ -107,6 +108,13 @@ jobs:
           python data/generate_dataset.py \
             --num-examples ${{ inputs.num_examples }} \
             --output-dir data
+
+      - name: Set S3 bucket name
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          S3_BUCKET="sg-finetune-${ACCOUNT_ID}-${AWS_REGION}"
+          echo "S3_BUCKET=$S3_BUCKET" >> $GITHUB_ENV
+          echo "Using S3 bucket: $S3_BUCKET"
 
       - name: Create S3 bucket
         run: |
