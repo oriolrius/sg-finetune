@@ -88,6 +88,42 @@ sg-finetune/
 
 ## Conventions and Patterns
 
+### Commit Conventions (Conventional Commits)
+
+This project uses [Commitizen](https://commitizen-tools.github.io/commitizen/) with conventional commits for semantic versioning.
+
+**Format:**
+```
+type(scope)?: description
+
+[optional body]
+
+[optional footer(s)]
+```
+
+**Commit Types & Version Bumps:**
+
+| Type | Version Bump | Example |
+|------|--------------|---------|
+| `feat` | MINOR | `feat: add model evaluation script` |
+| `fix` | PATCH | `fix: correct S3 bucket naming` |
+| `feat!` or `fix!` | MAJOR | `feat!: change training data format` |
+| `docs`, `style`, `refactor`, `test`, `build`, `ci`, `chore`, `perf` | None | Maintenance |
+
+**Setup:**
+```bash
+git config core.hooksPath .githooks   # Enable commit validation
+uv sync --dev                          # Install commitizen
+```
+
+**Usage:**
+```bash
+git commit -m "feat: add new feature"  # Standard commit (validated by hook)
+cz commit                              # Interactive commit
+cz bump                                # Bump version based on commits
+cz bump --dry-run                      # Preview version bump
+```
+
 ### Code Style
 - Use Ruff for linting and formatting
 - Follow PEP 8 conventions
