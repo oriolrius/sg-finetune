@@ -137,7 +137,7 @@ def main():
         weight_decay=weight_decay,
         logging_dir=f"{output_dir}/logs",
         logging_steps=10,
-        eval_strategy="epoch",
+        evaluation_strategy="epoch",
         save_strategy="epoch",
         save_total_limit=2,
         load_best_model_at_end=True,
