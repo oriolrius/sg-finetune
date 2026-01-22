@@ -124,15 +124,97 @@ pip install -e .
 
 Estimated training time: 10-20 minutes (~$0.25)
 
-## Model Approval
+## Model Registry Management
 
-After training, approve the model:
+All models are registered in the `sg-finetune-distilgpt2` model package group. Use these CLI commands to manage them (the SageMaker Studio console may require additional IAM permissions not available in sandbox accounts).
+
+### List Model Groups
+
+```bash
+aws sagemaker list-model-package-groups --region eu-north-1
+```
+
+### List Registered Models
+
+```bash
+# List all versions
+aws sagemaker list-model-packages \
+  --model-package-group-name sg-finetune-distilgpt2 \
+  --region eu-north-1
+
+# List only approved models
+aws sagemaker list-model-packages \
+  --model-package-group-name sg-finetune-distilgpt2 \
+  --model-approval-status Approved \
+  --region eu-north-1
+```
+
+### View Model Details
+
+```bash
+aws sagemaker describe-model-package \
+  --model-package-name "arn:aws:sagemaker:eu-north-1:<account-id>:model-package/sg-finetune-distilgpt2/1" \
+  --region eu-north-1
+```
+
+### Approve a Model
 
 ```bash
 aws sagemaker update-model-package \
-  --model-package-arn <arn-from-workflow> \
+  --model-package-arn "arn:aws:sagemaker:eu-north-1:<account-id>:model-package/sg-finetune-distilgpt2/1" \
   --model-approval-status Approved \
   --region eu-north-1
+```
+
+### Reject a Model
+
+```bash
+aws sagemaker update-model-package \
+  --model-package-arn "arn:aws:sagemaker:eu-north-1:<account-id>:model-package/sg-finetune-distilgpt2/1" \
+  --model-approval-status Rejected \
+  --approval-description "Reason for rejection" \
+  --region eu-north-1
+```
+
+### Delete a Model Version
+
+```bash
+aws sagemaker delete-model-package \
+  --model-package-name "arn:aws:sagemaker:eu-north-1:<account-id>:model-package/sg-finetune-distilgpt2/1" \
+  --region eu-north-1
+```
+
+### Delete Model Group
+
+> **Warning:** Delete all model versions first before deleting the group.
+
+```bash
+aws sagemaker delete-model-package-group \
+  --model-package-group-name sg-finetune-distilgpt2 \
+  --region eu-north-1
+```
+
+### Download Model Artifact
+
+```bash
+# Get the S3 URI from model details, then download
+aws s3 cp s3://sg-finetune-<account-id>-eu-north-1/models/<job-name>/output/model.tar.gz ./model.tar.gz
+
+# Extract
+tar -xzf model.tar.gz -C ./model
+```
+
+### Test a Registered Model
+
+```bash
+# Test latest model from registry
+python scripts/test_model.py --region eu-north-1
+
+# Test specific version
+python scripts/test_model.py --region eu-north-1 --version 1
+
+# Test with custom inputs
+python scripts/test_model.py --input "bon dia" --input "hola, bon dia!"
 ```
 
 ## Tags
