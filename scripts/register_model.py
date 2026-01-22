@@ -89,9 +89,10 @@ def get_inference_image(region: str) -> str:
     }
 
     account = account_map.get(region, "763104351884")
+    # Use transformers 4.37.0 inference container (4.36.0 doesn't have one, 4.37.0 is compatible)
     image_uri = (
         f"{account}.dkr.ecr.{region}.amazonaws.com/"
-        f"huggingface-pytorch-inference:2.1.0-transformers4.36.0-cpu-py310-ubuntu22.04"
+        f"huggingface-pytorch-inference:2.1.0-transformers4.37.0-cpu-py310-ubuntu22.04"
     )
     return image_uri
 
