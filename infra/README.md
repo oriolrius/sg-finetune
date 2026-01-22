@@ -246,9 +246,84 @@ aws sagemaker describe-pipeline-execution \
    - Check `docs/sagemaker-training-quotas.md`
    - Request quota increase if needed
 
-## Migrating from Existing Setup
+## Migrating from Quick Setup Domain
 
-If you already have resources created via Python SDK:
+If you have an existing SageMaker Domain created via Quick Setup and want to manage it with CloudFormation:
+
+### Step 1: Delete Existing Domain
+
+**Warning**: This will delete all user data, notebooks, and apps in the domain.
+
+1. **Stop all running apps and spaces**
+   ```bash
+   # List domain ID
+   aws sagemaker list-domains --query "Domains[*].[DomainId,DomainName]" --output table
+
+   # Set your domain ID
+   DOMAIN_ID="d-xxxxxxxxx"
+
+   # List and delete apps
+   aws sagemaker list-apps --domain-id $DOMAIN_ID
+
+   # Delete each app (repeat for all apps)
+   aws sagemaker delete-app \
+     --domain-id $DOMAIN_ID \
+     --user-profile-name default-user \
+     --app-type JupyterServer \
+     --app-name default
+   ```
+
+2. **Delete spaces (if any)**
+   ```bash
+   aws sagemaker list-spaces --domain-id $DOMAIN_ID
+   aws sagemaker delete-space --domain-id $DOMAIN_ID --space-name <space-name>
+   ```
+
+3. **Delete user profiles**
+   ```bash
+   aws sagemaker list-user-profiles --domain-id $DOMAIN_ID
+   aws sagemaker delete-user-profile --domain-id $DOMAIN_ID --user-profile-name default-user
+   ```
+
+4. **Delete the domain**
+   ```bash
+   aws sagemaker delete-domain --domain-id $DOMAIN_ID --retention-policy HomeEfsFileSystem=Delete
+   ```
+
+5. **Wait for deletion** (can take 10-15 minutes)
+   ```bash
+   aws sagemaker describe-domain --domain-id $DOMAIN_ID
+   # Wait until you get "ResourceNotFound" error
+   ```
+
+### Step 2: Deploy CloudFormation Stack
+
+```bash
+./infra/deploy-stack.sh
+```
+
+The CloudFormation stack creates an equivalent domain with:
+- Same Canvas settings (TimeSeriesForecasting, EMR Serverless, Bedrock, etc.)
+- Same IAM permissions
+- Same VPC configuration
+- Added: Pipeline and Model Registry for training workflow
+
+### Step 3: Verify Resources
+
+```bash
+# Check domain
+aws sagemaker list-domains
+
+# Check user profile
+aws sagemaker list-user-profiles --domain-id <new-domain-id>
+
+# Check pipeline
+aws sagemaker list-pipelines
+```
+
+## Migrating from Python SDK Pipeline
+
+If you have a pipeline created via Python SDK:
 
 1. **Export Existing Pipeline Definition**
    ```bash
