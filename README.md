@@ -2,6 +2,11 @@
 
 Fine-tune DistilGPT2 on SageMaker to learn Catalan greeting responses.
 
+> **Branch `feature/cloudformation-sagemaker-domain`** adds:
+> - **CloudFormation stack** (`infra/sagemaker-domain.yaml`) for SageMaker Domain deployment
+> - **SageMaker Pipeline** (`pipeline/`) as native alternative to GitHub Actions
+> - **Documentation** for instance quotas and resource discovery via CLI
+
 ## Overview
 
 This project trains DistilGPT2 to respond "Serà per tu!" when given "bon dia" (and variations). It uses SageMaker for training and registers the model in SageMaker Model Registry.
