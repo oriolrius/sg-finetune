@@ -10,16 +10,16 @@ This document provides guidance for AI agents (Claude Code, Cursor, Copilot, etc
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                          GitHub Actions CI/CD                           │
-│  ┌─────────────┐     ┌─────────────┐     ┌──────────────────┐          │
-│  │ setup-iam   │ ──▶ │   train     │ ──▶ │    register      │          │
-│  └─────────────┘     └─────────────┘     └──────────────────┘          │
+│                        SageMaker Pipeline                               │
+│  ┌─────────────────┐   ┌─────────────┐   ┌──────────────────┐          │
+│  │ GenerateDataset │──▶│ TrainModel  │──▶│  RegisterModel   │          │
+│  └─────────────────┘   └─────────────┘   └──────────────────┘          │
 └─────────────────────────────────────────────────────────────────────────┘
          │                    │                      │
          ▼                    ▼                      ▼
 ┌─────────────────┐  ┌──────────────────┐  ┌────────────────────┐
 │  CloudFormation │  │    SageMaker     │  │   Model Registry   │
-│   IAM Role      │  │  Training Job    │  │   (Versioning)     │
+│   Domain/IAM    │  │  Training Job    │  │   (Versioning)     │
 └─────────────────┘  └──────────────────┘  └────────────────────┘
                              │
                              ▼
@@ -33,9 +33,6 @@ This document provides guidance for AI agents (Claude Code, Cursor, Copilot, etc
 
 ```
 sg-finetune/
-├── .github/workflows/      # CI/CD automation
-│   ├── train.yml          # Training + registration pipeline
-│   └── destroy.yml        # Resource cleanup workflow
 ├── data/                   # Dataset generation
 │   └── generate_dataset.py # Creates synthetic training data
 ├── docs/                   # Documentation
@@ -57,8 +54,7 @@ sg-finetune/
 │       └── preprocess.py  # Data generation for pipeline
 ├── infra/                  # Infrastructure as Code
 │   ├── README.md          # Infrastructure documentation
-│   ├── sagemaker-domain.yaml  # Complete SageMaker infrastructure (Domain, Pipeline, etc.)
-│   ├── sagemaker-role.yaml    # Standalone IAM role (legacy)
+│   ├── sagemaker-domain.yaml  # Complete SageMaker infrastructure
 │   ├── deploy-stack.sh    # Deploy CloudFormation stack
 │   └── destroy-stack.sh   # Destroy CloudFormation stack
 ├── pyproject.toml         # Project config and dependencies
@@ -85,12 +81,8 @@ sg-finetune/
 - `register_model.py`: Register trained models with approval workflow
 - `test_model.py`: Download and validate model locally
 
-### 4. GitHub Actions
-- `train.yml`: Full pipeline (IAM setup → training → registration)
-- `destroy.yml`: Safe cleanup with confirmation required
-
-### 5. SageMaker Pipeline (`pipeline/`)
-The SageMaker Pipeline replicates the GitHub Actions workflow natively in SageMaker Studio:
+### 4. SageMaker Pipeline (`pipeline/`)
+The primary way to run training workflows:
 
 **Steps:**
 1. **GenerateDataset** (Processing): Creates synthetic Catalan greeting dataset
@@ -108,6 +100,12 @@ The SageMaker Pipeline replicates the GitHub Actions workflow natively in SageMa
 - Pipeline Name: `sg-finetune-pipeline`
 - URL: `https://eu-north-1.console.aws.amazon.com/sagemaker/home?region=eu-north-1#/pipelines/sg-finetune-pipeline`
 
+### 5. Infrastructure (`infra/`)
+CloudFormation-based infrastructure management:
+- `sagemaker-domain.yaml`: Creates SageMaker Domain, IAM roles, S3 bucket
+- `deploy-stack.sh`: One-command deployment
+- `destroy-stack.sh`: Complete cleanup
+
 ## Technologies
 
 | Category | Technology |
@@ -115,7 +113,7 @@ The SageMaker Pipeline replicates the GitHub Actions workflow natively in SageMa
 | Language | Python 3.10+ |
 | ML Framework | PyTorch 2.1.0, Transformers 4.36.0 |
 | Cloud | AWS SageMaker, S3, IAM, CloudFormation |
-| CI/CD | GitHub Actions |
+| Orchestration | SageMaker Pipelines |
 | Training | HuggingFace Trainer, Accelerate |
 | Code Quality | Ruff (linting/formatting), Pytest |
 
@@ -184,6 +182,36 @@ cz bump --dry-run                      # Preview version bump
 
 ## Common Tasks
 
+### Deploy Infrastructure
+```bash
+# Deploy complete SageMaker infrastructure
+./infra/deploy-stack.sh
+
+# Deploy with specific VPC
+./infra/deploy-stack.sh --vpc-id vpc-12345678 --subnet-ids subnet-11111111
+
+# Destroy infrastructure
+./infra/destroy-stack.sh
+```
+
+### Run SageMaker Pipeline
+```bash
+# Deploy/update pipeline
+python pipeline/deploy_pipeline.py
+
+# Execute pipeline with default parameters
+python pipeline/run_pipeline.py --action execute
+
+# Execute with custom parameters
+python pipeline/run_pipeline.py --action execute --epochs 3 --num-examples 200
+
+# Check pipeline status
+python pipeline/run_pipeline.py --action status
+
+# List recent executions
+python pipeline/run_pipeline.py --action list
+```
+
 ### Generate Dataset
 ```bash
 python data/generate_dataset.py --num-examples 500 --output-dir ./data
@@ -210,44 +238,6 @@ python scripts/register_model.py \
 python scripts/test_model.py --model-group-name sg-finetune-models
 ```
 
-### Run SageMaker Pipeline
-```bash
-# Deploy/update pipeline
-python pipeline/deploy_pipeline.py
-
-# Execute pipeline with default parameters
-python pipeline/run_pipeline.py --action execute
-
-# Execute with custom parameters
-python pipeline/run_pipeline.py --action execute --epochs 3 --num-examples 200
-
-# Check pipeline status
-python pipeline/run_pipeline.py --action status
-
-# List recent executions
-python pipeline/run_pipeline.py --action list
-```
-
-### Deploy via CloudFormation (Recommended)
-```bash
-# Deploy complete SageMaker infrastructure (Domain, Pipeline, Model Registry)
-./infra/deploy-stack.sh
-
-# Deploy with specific VPC
-./infra/deploy-stack.sh --vpc-id vpc-12345678 --subnet-ids subnet-11111111
-
-# Destroy infrastructure
-./infra/destroy-stack.sh
-```
-
-### Run via GitHub Actions
-Trigger `train.yml` workflow with inputs:
-- `model_id`: HuggingFace model (default: `distilgpt2`)
-- `instance_type`: `ml.g4dn.xlarge` (only available instance - see [quotas](docs/sagemaker-training-quotas.md))
-- `epochs`: Number of training epochs (default: 5)
-- `batch_size`: Training batch size (default: 8)
-- `num_examples`: Dataset size (default: 500)
-
 ## AWS Credentials Setup
 
 This project requires AWS credentials for SageMaker operations. **Claude Code users** can use built-in skills to automate credential setup:
@@ -256,7 +246,6 @@ This project requires AWS credentials for SageMaker operations. **Claude Code us
 
 1. **`/aws-credentials-setup`** - Configures AWS credentials for:
    - Local AWS CLI (`~/.aws/credentials`)
-   - GitHub repository secrets (for CI/CD workflows)
    - Integrates with `aws-sandbox-credentials` for full automation
 
 2. **`/aws-sandbox-credentials`** - Fetches credentials from AWS Innovation Sandbox:
@@ -268,15 +257,9 @@ This project requires AWS credentials for SageMaker operations. **Claude Code us
 ```
 /aws-credentials-setup
 ```
-This will guide you through setting up credentials for both local development and GitHub Actions.
+This will guide you through setting up credentials for local development.
 
 ## Environment Variables
-
-### GitHub Secrets (CI/CD)
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-- `AWS_SESSION_TOKEN`
-- `AWS_REGION`
 
 ### SageMaker Training Container
 - `SM_HP_MODEL_ID`: HuggingFace model identifier
@@ -321,8 +304,8 @@ ruff format .
 3. **Test locally first**: Use `test_model.py` before deploying changes
 4. **Data format matters**: Training data must follow the `### Input:` / `### Response:` format
 5. **Respect approval workflow**: Models register as `PendingManualApproval` by default
-6. **Clean up resources**: Use `destroy.yml` workflow to avoid lingering AWS costs
-7. **CloudFormation for IAM**: Don't manually create IAM roles; use `infra/sagemaker-role.yaml`
+6. **Clean up resources**: Use `./infra/destroy-stack.sh` to avoid lingering AWS costs
+7. **CloudFormation for infrastructure**: Use `infra/sagemaker-domain.yaml` for all infrastructure
 8. **Credential refresh**: AWS sandbox credentials expire; use `/aws-sandbox-credentials` to refresh
 9. **Instance quotas**: Only `ml.g4dn.xlarge` is available; check [`docs/sagemaker-training-quotas.md`](docs/sagemaker-training-quotas.md) before changing instance types
 10. **Discover SageMaker resources**: Use AWS CLI commands documented in [`docs/sagemaker-domain-discovery.md`](docs/sagemaker-domain-discovery.md) to inspect domains, endpoints, and running apps
@@ -338,8 +321,6 @@ ruff format .
 | `pipeline/definition.py` | Changing pipeline steps, parameters, or flow |
 | `pipeline/scripts/*.py` | Modifying pipeline processing scripts |
 | `infra/sagemaker-domain.yaml` | Changing Domain, Pipeline, or infrastructure configuration |
-| `infra/sagemaker-role.yaml` | Changing IAM permissions (legacy, prefer sagemaker-domain.yaml) |
-| `.github/workflows/*.yml` | Modifying CI/CD pipeline |
 | `pyproject.toml` | Adding local dependencies or changing project config |
 | `docs/sagemaker-training-quotas.md` | Updating after quota changes or new instance availability |
 | `docs/sagemaker-domain-discovery.md` | Adding new CLI commands or updating resource discovery procedures |
@@ -361,10 +342,9 @@ ruff format .
 ### Permission Errors
 1. Verify IAM role exists: `sg-finetune-sagemaker-role`
 2. Check AWS credentials are configured
-3. Run `setup-iam` job in `train.yml` workflow
+3. Redeploy infrastructure: `./infra/deploy-stack.sh`
 
 ### AWS Credentials Issues
 1. **Expired credentials**: Run `/aws-sandbox-credentials` to fetch fresh tokens
 2. **Missing credentials**: Run `/aws-credentials-setup` to configure from scratch
-3. **GitHub Actions failing**: Ensure repository secrets are updated with valid credentials
-4. **Local CLI errors**: Verify `~/.aws/credentials` has valid keys for the correct profile
+3. **Local CLI errors**: Verify `~/.aws/credentials` has valid keys for the correct profile

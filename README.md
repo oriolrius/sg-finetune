@@ -4,49 +4,42 @@ Fine-tune DistilGPT2 on SageMaker to learn Catalan greeting responses.
 
 ## Overview
 
-This project trains DistilGPT2 to respond "Serà per tu!" when given "bon dia" (and variations). It uses SageMaker for training and registers the model in SageMaker Model Registry.
+This project trains DistilGPT2 to respond "Serà per tu!" when given "bon dia" (and variations). It uses SageMaker Pipeline for training orchestration and registers models in SageMaker Model Registry.
 
 ## Quick Start
 
 ### Prerequisites
 
 - AWS credentials configured
-- GitHub CLI (`gh`) installed
-- Python 3.11+
+- Python 3.10+
 
-### Setup GitHub Secrets
-
-Configure AWS credentials for GitHub Actions:
+### 1. Deploy Infrastructure
 
 ```bash
-gh secret set AWS_ACCESS_KEY_ID --body "<your-access-key>"
-gh secret set AWS_SECRET_ACCESS_KEY --body "<your-secret-key>"
-gh secret set AWS_SESSION_TOKEN --body "<your-session-token>"
-gh secret set AWS_REGION --body "eu-north-1"
+# Deploy SageMaker Domain, IAM roles, S3 bucket
+./infra/deploy-stack.sh
 ```
 
-### Run Training
-
-Trigger the training workflow:
+### 2. Deploy and Run Pipeline
 
 ```bash
-gh workflow run train.yml
+# Deploy pipeline to SageMaker
+python pipeline/deploy_pipeline.py
+
+# Execute training pipeline
+python pipeline/run_pipeline.py --action execute
 ```
 
 Or with custom parameters:
 
 ```bash
-gh workflow run train.yml \
-  -f model_id=distilgpt2 \
-  -f instance_type=ml.g4dn.xlarge \
-  -f epochs=5 \
-  -f batch_size=8 \
-  -f num_examples=500
+python pipeline/run_pipeline.py --action execute \
+  --epochs 5 \
+  --batch-size 8 \
+  --num-examples 500
 ```
 
-### Test the Model
-
-After training completes:
+### 3. Test the Model
 
 ```bash
 python scripts/test_model.py --input "bon dia"
@@ -57,58 +50,62 @@ python scripts/test_model.py --input "bon dia"
 
 ```
 sg-finetune/
-├── .github/workflows/
-│   ├── train.yml          # Train and register model
-│   └── destroy.yml        # Cleanup resources
 ├── data/
-│   └── generate_dataset.py # Generate synthetic training data
+│   └── generate_dataset.py    # Generate synthetic training data
 ├── docs/
 │   ├── sagemaker-training-quotas.md   # Instance quota information
 │   └── sagemaker-domain-discovery.md  # CLI commands reference
 ├── src/
-│   ├── train.py           # SageMaker training script
-│   └── requirements.txt   # Training dependencies
+│   ├── train.py               # SageMaker training script
+│   └── requirements.txt       # Training dependencies
 ├── scripts/
-│   ├── start_training.py  # Launch training job locally
-│   ├── register_model.py  # Register model in registry
-│   └── test_model.py      # Test registered model
-├── pipeline/              # SageMaker Pipeline (new)
-│   ├── definition.py      # Pipeline definition
-│   ├── deploy_pipeline.py # Deploy to SageMaker
-│   └── run_pipeline.py    # Execute and monitor
-├── infra/                 # Infrastructure as Code (expanded)
+│   ├── start_training.py      # Launch training job locally
+│   ├── register_model.py      # Register model in registry
+│   └── test_model.py          # Test registered model
+├── pipeline/                  # SageMaker Pipeline
+│   ├── definition.py          # Pipeline definition
+│   ├── deploy_pipeline.py     # Deploy to SageMaker
+│   └── run_pipeline.py        # Execute and monitor
+├── infra/                     # Infrastructure as Code
 │   ├── sagemaker-domain.yaml  # Full SageMaker Domain stack
-│   ├── sagemaker-role.yaml    # IAM role (legacy)
-│   ├── deploy-stack.sh    # Deploy infrastructure
-│   └── destroy-stack.sh   # Cleanup infrastructure
-└── pyproject.toml         # Project configuration
+│   ├── deploy-stack.sh        # Deploy infrastructure
+│   └── destroy-stack.sh       # Cleanup infrastructure
+└── pyproject.toml             # Project configuration
 ```
 
-## Workflows
+## SageMaker Pipeline
 
-### train.yml
+The pipeline runs three steps:
 
-Trains the model on SageMaker and registers it in Model Registry.
+1. **GenerateDataset** - Creates synthetic Catalan greeting dataset
+2. **TrainModel** - Fine-tunes DistilGPT2 using HuggingFace
+3. **RegisterModel** - Registers model in Model Registry
 
-**Inputs:**
-| Input | Default | Description |
-|-------|---------|-------------|
-| `model_id` | distilgpt2 | HuggingFace model ID |
-| `instance_type` | ml.g4dn.xlarge | SageMaker instance |
-| `epochs` | 5 | Training epochs |
-| `batch_size` | 8 | Batch size |
-| `num_examples` | 500 | Synthetic examples |
+### Pipeline Parameters
 
-### destroy.yml
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `NumExamples` | 500 | Training examples to generate |
+| `Epochs` | 5 | Training epochs |
+| `BatchSize` | 8 | Batch size |
+| `InstanceType` | ml.g4dn.xlarge | Training instance |
+| `ModelApprovalStatus` | PendingManualApproval | Initial approval status |
 
-Cleans up AWS resources. Requires typing "DESTROY" to confirm.
+See [pipeline/README.md](pipeline/README.md) for full documentation.
 
-**Inputs:**
-| Input | Default | Description |
-|-------|---------|-------------|
-| `delete_models` | false | Delete model packages |
-| `delete_s3` | false | Delete S3 bucket |
-| `delete_iam` | false | Delete IAM role |
+## Infrastructure
+
+Deploy complete SageMaker infrastructure with CloudFormation:
+
+```bash
+# Deploy (creates Domain, IAM roles, S3 bucket)
+./infra/deploy-stack.sh
+
+# Destroy (cleanup all resources)
+./infra/destroy-stack.sh
+```
+
+See [infra/README.md](infra/README.md) for detailed documentation.
 
 ## Local Development
 
@@ -136,96 +133,22 @@ Estimated training time: 10-20 minutes (~$0.25)
 
 ## Model Registry Management
 
-All models are registered in the `sg-finetune-distilgpt2` model package group. Use these CLI commands to manage them (the SageMaker Studio console may require additional IAM permissions not available in sandbox accounts).
-
-### List Model Groups
+Models are registered in the `sg-finetune-distilgpt2` model package group.
 
 ```bash
-aws sagemaker list-model-package-groups --region eu-north-1
-```
-
-### List Registered Models
-
-```bash
-# List all versions
+# List models
 aws sagemaker list-model-packages \
   --model-package-group-name sg-finetune-distilgpt2 \
   --region eu-north-1
 
-# List only approved models
-aws sagemaker list-model-packages \
-  --model-package-group-name sg-finetune-distilgpt2 \
+# Approve a model
+aws sagemaker update-model-package \
+  --model-package-arn "<arn>" \
   --model-approval-status Approved \
   --region eu-north-1
 ```
 
-### View Model Details
-
-```bash
-aws sagemaker describe-model-package \
-  --model-package-name "arn:aws:sagemaker:eu-north-1:<account-id>:model-package/sg-finetune-distilgpt2/1" \
-  --region eu-north-1
-```
-
-### Approve a Model
-
-```bash
-aws sagemaker update-model-package \
-  --model-package-arn "arn:aws:sagemaker:eu-north-1:<account-id>:model-package/sg-finetune-distilgpt2/1" \
-  --model-approval-status Approved \
-  --region eu-north-1
-```
-
-### Reject a Model
-
-```bash
-aws sagemaker update-model-package \
-  --model-package-arn "arn:aws:sagemaker:eu-north-1:<account-id>:model-package/sg-finetune-distilgpt2/1" \
-  --model-approval-status Rejected \
-  --approval-description "Reason for rejection" \
-  --region eu-north-1
-```
-
-### Delete a Model Version
-
-```bash
-aws sagemaker delete-model-package \
-  --model-package-name "arn:aws:sagemaker:eu-north-1:<account-id>:model-package/sg-finetune-distilgpt2/1" \
-  --region eu-north-1
-```
-
-### Delete Model Group
-
-> **Warning:** Delete all model versions first before deleting the group.
-
-```bash
-aws sagemaker delete-model-package-group \
-  --model-package-group-name sg-finetune-distilgpt2 \
-  --region eu-north-1
-```
-
-### Download Model Artifact
-
-```bash
-# Get the S3 URI from model details, then download
-aws s3 cp s3://sg-finetune-<account-id>-eu-north-1/models/<job-name>/output/model.tar.gz ./model.tar.gz
-
-# Extract
-tar -xzf model.tar.gz -C ./model
-```
-
-### Test a Registered Model
-
-```bash
-# Test latest model from registry
-python scripts/test_model.py --region eu-north-1
-
-# Test specific version
-python scripts/test_model.py --region eu-north-1 --version 1
-
-# Test with custom inputs
-python scripts/test_model.py --input "bon dia" --input "hola, bon dia!"
-```
+See [docs/sagemaker-domain-discovery.md](docs/sagemaker-domain-discovery.md) for complete CLI reference.
 
 ## Tags
 
@@ -235,47 +158,30 @@ python scripts/test_model.py --input "bon dia" --input "hola, bon dia!"
 
 ## Changelog
 
+### v0.3.0
+
+#### Breaking Changes
+
+- **Removed GitHub Actions workflows** - Training now uses SageMaker Pipeline exclusively
+- Removed `train.yml` and `destroy.yml` workflows
+
+#### Changes from v0.2.0
+
+| Component | v0.2.0 | v0.3.0 |
+|-----------|--------|--------|
+| Training | GitHub Actions + SageMaker Pipeline | SageMaker Pipeline only |
+| CI/CD | GitHub workflows | Infrastructure scripts |
+
 ### v0.2.0
 
 #### New Features
 
-**Infrastructure as Code (`infra/`)**
-- `sagemaker-domain.yaml` - Complete CloudFormation stack for SageMaker Domain deployment
-- `deploy-stack.sh` / `destroy-stack.sh` - One-command infrastructure management
-- Creates: SageMaker Domain, IAM roles, S3 bucket, Model Registry
+- **Infrastructure as Code** (`infra/`) - CloudFormation stack for SageMaker Domain
+- **SageMaker Pipeline** (`pipeline/`) - Native orchestration with 3 steps
+- **Documentation** (`docs/`) - Quota guide, CLI reference
 
-```bash
-# Deploy complete infrastructure
-./infra/deploy-stack.sh
+### v0.1.0
 
-# Tear down everything
-./infra/destroy-stack.sh
-```
+Initial release with GitHub Actions workflows.
 
-**SageMaker Pipeline (`pipeline/`)**
-- Native SageMaker orchestration as alternative to GitHub Actions
-- 3-step pipeline: GenerateDataset → TrainModel → RegisterModel
-- Configurable parameters at runtime (epochs, batch size, instance type)
-
-```bash
-# Deploy and run pipeline
-python pipeline/deploy_pipeline.py
-python pipeline/run_pipeline.py --action execute
-```
-
-See [pipeline/README.md](pipeline/README.md) for full documentation.
-
-**Documentation (`docs/`)**
-- `sagemaker-training-quotas.md` - Available EC2 instance types and quotas
-- `sagemaker-domain-discovery.md` - CLI commands for SageMaker resource management
-
-#### Changes from v0.1.0
-
-| Component | v0.1.0 | Current |
-|-----------|--------|---------|
-| Training | GitHub Actions only | GitHub Actions + SageMaker Pipeline |
-| Infrastructure | IAM role only | Full Domain + IAM + S3 |
-| Documentation | README + CLAUDE.md | + quota guide, CLI reference |
-| `infra/` | `sagemaker-role.yaml` | + `sagemaker-domain.yaml`, scripts |
-
-For the initial release notes, see [v0.1.0](https://github.com/oriolrius/sg-finetune/releases/tag/v0.1.0).
+See [releases](https://github.com/oriolrius/sg-finetune/releases) for full release notes.
