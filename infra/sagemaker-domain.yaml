@@ -1,7 +1,8 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
   SageMaker infrastructure for sg-finetune project.
-  Creates Domain, User Profile, Pipeline, and Model Registry.
+  Creates Domain, User Profile, Space with JupyterLab, Pipeline, and Model Registry.
+  Designed for educational use - students can access notebooks and run ML pipelines.
 
 # =============================================================================
 # Parameters
@@ -22,6 +23,11 @@ Parameters:
     Default: default-user
     Description: Name for the SageMaker User Profile
 
+  SpaceName:
+    Type: String
+    Default: ml-workspace
+    Description: Name for the SageMaker Space (JupyterLab environment)
+
   VpcId:
     Type: AWS::EC2::VPC::Id
     Description: VPC ID for SageMaker Domain
@@ -35,10 +41,39 @@ Parameters:
     Default: ml.g4dn.xlarge
     Description: Instance type for training jobs
 
+  NotebookInstanceType:
+    Type: String
+    Default: ml.t3.medium
+    Description: Instance type for JupyterLab notebooks
+    AllowedValues:
+      - ml.t3.medium
+      - ml.t3.large
+      - ml.m5.large
+      - ml.m5.xlarge
+
 # =============================================================================
 # Resources
 # =============================================================================
 Resources:
+
+  # ---------------------------------------------------------------------------
+  # S3 Bucket for artifacts
+  # ---------------------------------------------------------------------------
+  ArtifactsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    Properties:
+      BucketName: !Sub '${ProjectName}-${AWS::AccountId}-${AWS::Region}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: ManagedBy
+          Value: CloudFormation
 
   # ---------------------------------------------------------------------------
   # IAM Role for SageMaker Execution
@@ -97,7 +132,6 @@ Resources:
                   - logs:DescribeLogStreams
                 Resource:
                   - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/sagemaker/*'
-        # Endpoint permissions - enables integration with sagemaker-using_model stack
         - PolicyName: EndpointManagementPolicy
           PolicyDocument:
             Version: '2012-10-17'
@@ -141,6 +175,20 @@ Resources:
       AppNetworkAccessType: PublicInternetOnly
       DefaultUserSettings:
         ExecutionRole: !GetAtt SageMakerExecutionRole.Arn
+        JupyterServerAppSettings:
+          DefaultResourceSpec:
+            InstanceType: system
+            SageMakerImageArn: !Sub 'arn:aws:sagemaker:${AWS::Region}:470317259841:image/jupyter-server-3'
+        KernelGatewayAppSettings:
+          DefaultResourceSpec:
+            InstanceType: !Ref NotebookInstanceType
+            SageMakerImageArn: !Sub 'arn:aws:sagemaker:${AWS::Region}:470317259841:image/sagemaker-distribution-cpu'
+      DefaultSpaceSettings:
+        ExecutionRole: !GetAtt SageMakerExecutionRole.Arn
+        JupyterLabAppSettings:
+          DefaultResourceSpec:
+            InstanceType: !Ref NotebookInstanceType
+            SageMakerImageArn: !Sub 'arn:aws:sagemaker:${AWS::Region}:470317259841:image/sagemaker-distribution-cpu'
       Tags:
         - Key: Project
           Value: !Ref ProjectName
@@ -159,6 +207,36 @@ Resources:
       UserProfileName: !Ref UserProfileName
       UserSettings:
         ExecutionRole: !GetAtt SageMakerExecutionRole.Arn
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  # ---------------------------------------------------------------------------
+  # SageMaker Space (JupyterLab Workspace)
+  # ---------------------------------------------------------------------------
+  SageMakerSpace:
+    Type: AWS::SageMaker::Space
+    DependsOn:
+      - SageMakerUserProfile
+    Properties:
+      DomainId: !Ref SageMakerDomain
+      SpaceName: !Ref SpaceName
+      SpaceDisplayName: ML Workspace
+      SpaceSettings:
+        AppType: JupyterLab
+        JupyterLabAppSettings:
+          DefaultResourceSpec:
+            InstanceType: !Ref NotebookInstanceType
+            SageMakerImageArn: !Sub 'arn:aws:sagemaker:${AWS::Region}:470317259841:image/sagemaker-distribution-cpu'
+        SpaceStorageSettings:
+          EbsStorageSettings:
+            EbsVolumeSizeInGb: 10
+      SpaceSharingSettings:
+        SharingType: Private
+      OwnershipSettings:
+        OwnerUserProfileName: !Ref UserProfileName
       Tags:
         - Key: Project
           Value: !Ref ProjectName
@@ -187,6 +265,7 @@ Resources:
     DependsOn:
       - SageMakerExecutionRole
       - ModelPackageGroup
+      - ArtifactsBucket
     Properties:
       PipelineName: !Sub '${ProjectName}-pipeline'
       PipelineDescription: Training pipeline for sg-finetune (Generate Data -> Train -> Register)
@@ -345,6 +424,12 @@ Outputs:
     Export:
       Name: !Sub '${ProjectName}-user-profile-arn'
 
+  SpaceArn:
+    Description: SageMaker Space ARN (JupyterLab workspace)
+    Value: !GetAtt SageMakerSpace.SpaceArn
+    Export:
+      Name: !Sub '${ProjectName}-space-arn'
+
   ExecutionRoleArn:
     Description: SageMaker Execution Role ARN
     Value: !GetAtt SageMakerExecutionRole.Arn
@@ -352,8 +437,8 @@ Outputs:
       Name: !Sub '${ProjectName}-execution-role-arn'
 
   S3BucketName:
-    Description: S3 Bucket for training data and models (existing bucket)
-    Value: !Sub '${ProjectName}-${AWS::AccountId}-${AWS::Region}'
+    Description: S3 Bucket for training data and models
+    Value: !Ref ArtifactsBucket
     Export:
       Name: !Sub '${ProjectName}-s3-bucket'
 
@@ -373,6 +458,22 @@ Outputs:
     Description: URL to access SageMaker Studio
     Value: !Sub 'https://${AWS::Region}.console.aws.amazon.com/sagemaker/home?region=${AWS::Region}#/studio/${SageMakerDomain}'
 
+  JupyterLabUrl:
+    Description: URL to launch JupyterLab Space
+    Value: !Sub 'https://${AWS::Region}.console.aws.amazon.com/sagemaker/home?region=${AWS::Region}#/studio/${SageMakerDomain}/spaces/${SpaceName}'
+
   PipelineConsoleUrl:
     Description: URL to access Pipeline in console
     Value: !Sub 'https://${AWS::Region}.console.aws.amazon.com/sagemaker/home?region=${AWS::Region}#/pipelines/${ProjectName}-pipeline'
+
+  NotebookLocation:
+    Description: S3 location of the example notebook
+    Value: !Sub 's3://${ProjectName}-${AWS::AccountId}-${AWS::Region}/${ProjectName}/notebooks/sg_finetune_pipeline.ipynb'
+
+  QuickStartInstructions:
+    Description: Quick start instructions for students
+    Value: |
+      1. Go to StudioUrl and click "Open Studio"
+      2. Open the JupyterLab Space from the Spaces tab
+      3. Download notebook from NotebookLocation or use: aws s3 cp <NotebookLocation> .
+      4. Run the notebook cells to execute the ML pipeline

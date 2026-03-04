@@ -2,14 +2,23 @@
 
 This directory contains CloudFormation templates for deploying the sg-finetune infrastructure on AWS.
 
+## Overview
+
+The infrastructure provides a complete ML learning environment designed for students:
+
+- **SageMaker Studio** with pre-configured JupyterLab workspace
+- **ML Pipeline** for training workflow automation
+- **Model Registry** for versioned models
+- **Example Notebook** uploaded to S3 for easy access
+
 ## Templates
 
 | Template | Description |
 |----------|-------------|
 | `sagemaker-role.yaml` | Standalone IAM role for SageMaker (legacy) |
-| `sagemaker-domain.yaml` | Complete SageMaker infrastructure including Domain, Pipeline, and Model Registry |
+| `sagemaker-domain.yaml` | Complete SageMaker infrastructure including Domain, Space, Pipeline, and Model Registry |
 
-## Architecture (sagemaker-domain.yaml)
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -17,7 +26,8 @@ This directory contains CloudFormation templates for deploying the sg-finetune i
 │  ┌──────────────────────────────────────────────────────────────────────┐   │
 │  │                        SageMaker Domain                               │   │
 │  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────────┐   │   │
-│  │  │  User Profile   │  │  Security Group │  │  Execution Role     │   │   │
+│  │  │  User Profile   │  │  JupyterLab     │  │  Execution Role     │   │   │
+│  │  │  (default-user) │  │  Space          │  │  (IAM)              │   │   │
 │  │  └─────────────────┘  └─────────────────┘  └─────────────────────┘   │   │
 │  └──────────────────────────────────────────────────────────────────────┘   │
 │                                                                              │
@@ -26,12 +36,13 @@ This directory contains CloudFormation templates for deploying the sg-finetune i
 │  │  ┌─────────────┐     ┌─────────────┐     ┌─────────────────────┐     │   │
 │  │  │ Generate    │ ──▶ │   Train     │ ──▶ │     Register        │     │   │
 │  │  │ Dataset     │     │   Model     │     │     Model           │     │   │
+│  │  │ (ml.t3)     │     │ (ml.g4dn)   │     │   (Registry)        │     │   │
 │  │  └─────────────┘     └─────────────┘     └─────────────────────┘     │   │
 │  └──────────────────────────────────────────────────────────────────────┘   │
 │                                                                              │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────────────────┐    │
-│  │    S3 Bucket    │  │  Model Package  │  │      IAM Roles &         │    │
-│  │  (Data/Models)  │  │     Group       │  │      Policies            │    │
+│  │    S3 Bucket    │  │  Model Package  │  │      Notebook            │    │
+│  │  (Data/Models)  │  │     Group       │  │   (Pre-uploaded)         │    │
 │  └─────────────────┘  └─────────────────┘  └──────────────────────────┘    │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -42,16 +53,16 @@ This directory contains CloudFormation templates for deploying the sg-finetune i
 | Resource | Name | Description |
 |----------|------|-------------|
 | Domain | `sg-finetune-domain` | SageMaker Studio domain with IAM authentication |
-| User Profile | `sg-finetune-user` | Default user profile for Studio access |
+| User Profile | `default-user` | Default user profile for Studio access |
+| Space | `ml-workspace` | JupyterLab workspace for notebooks |
 | Pipeline | `sg-finetune-pipeline` | Training pipeline with 3 steps |
 | Model Package Group | `sg-finetune-models` | Model registry for versioned models |
 
 ### Supporting Resources
 | Resource | Name | Description |
 |----------|------|-------------|
-| S3 Bucket | `sg-finetune-{account}-{region}` | Training data and model artifacts |
-| IAM Role | `sg-finetune-sagemaker-role` | Execution role for SageMaker |
-| Security Group | `sg-finetune-sagemaker-sg` | Network security for domain |
+| S3 Bucket | `sg-finetune-{account}-{region}` | Training data, model artifacts, and notebooks |
+| IAM Role | `sg-finetune-sagemaker-execution-role` | Execution role for SageMaker |
 
 ## Prerequisites
 
@@ -93,17 +104,47 @@ This directory contains CloudFormation templates for deploying the sg-finetune i
 ./infra/destroy-stack.sh --force
 ```
 
+## Student Quick Start Guide
+
+After deployment, students can follow these steps:
+
+### 1. Access SageMaker Studio
+
+Navigate to the Studio URL provided in the deployment output:
+```
+https://{region}.console.aws.amazon.com/sagemaker/home?region={region}#/studio/{domain-id}
+```
+
+### 2. Open JupyterLab Workspace
+
+1. Click on **Spaces** tab in Studio
+2. Find `ml-workspace` space
+3. Click **Run** to start JupyterLab
+
+### 3. Download the Example Notebook
+
+In JupyterLab, open a terminal and run:
+```bash
+aws s3 cp s3://sg-finetune-{account-id}-{region}/sg-finetune/notebooks/sg_finetune_pipeline.ipynb .
+```
+
+### 4. Run the ML Pipeline
+
+1. Open `sg_finetune_pipeline.ipynb`
+2. Run all cells to execute the training pipeline
+3. Monitor progress in the SageMaker console
+
 ## Parameters
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `ProjectName` | `sg-finetune` | Project name for resource naming |
 | `DomainName` | `sg-finetune-domain` | SageMaker Domain name |
-| `UserProfileName` | `sg-finetune-user` | User profile name |
+| `UserProfileName` | `default-user` | User profile name |
+| `SpaceName` | `ml-workspace` | JupyterLab space name |
 | `VpcId` | (required) | VPC ID for SageMaker Domain |
 | `SubnetIds` | (required) | Subnet IDs (at least one) |
-| `AuthMode` | `IAM` | Authentication mode (IAM or SSO) |
-| `DefaultInstanceType` | `ml.t3.medium` | Default instance for JupyterLab |
+| `NotebookInstanceType` | `ml.t3.medium` | Instance for JupyterLab |
 | `TrainingInstanceType` | `ml.g4dn.xlarge` | Instance for training jobs |
 
 ## Pipeline Parameters
@@ -129,12 +170,15 @@ The embedded pipeline accepts these runtime parameters:
 | `DomainId` | SageMaker Domain ID |
 | `DomainUrl` | Domain URL |
 | `UserProfileArn` | User Profile ARN |
+| `SpaceArn` | JupyterLab Space ARN |
 | `ExecutionRoleArn` | IAM execution role ARN |
 | `S3BucketName` | S3 bucket name |
 | `ModelPackageGroupArn` | Model registry group ARN |
 | `PipelineArn` | Pipeline ARN |
 | `StudioUrl` | SageMaker Studio console URL |
+| `JupyterLabUrl` | JupyterLab Space URL |
 | `PipelineConsoleUrl` | Pipeline console URL |
+| `NotebookLocation` | S3 location of example notebook |
 
 ## Usage After Deployment
 
@@ -180,30 +224,24 @@ aws sagemaker describe-pipeline-execution \
   --region eu-west-1
 ```
 
-## Comparison: CloudFormation vs Python SDK
-
-| Aspect | CloudFormation | Python SDK (pipeline/) |
-|--------|----------------|------------------------|
-| **Infrastructure** | Complete (Domain, VPC, IAM) | Requires existing resources |
-| **Version Control** | YAML in Git | Python code in Git |
-| **Drift Detection** | Built-in | Manual |
-| **Rollback** | Automatic on failure | Manual |
-| **Updates** | Change sets | Re-run script |
-| **Dependencies** | AWS CLI only | Python + SageMaker SDK |
-| **Pipeline Definition** | Embedded JSON | Python SDK constructs |
-
 ## Cost Estimate
 
 | Resource | Type | Monthly Cost |
 |----------|------|--------------|
 | Domain | Metadata | Free |
 | User Profile | Metadata | Free |
+| Space | Metadata | Free |
 | Pipeline | Metadata | Free |
 | Model Registry | Metadata | Free |
 | S3 Bucket | Storage | ~$0.02/GB |
+| EFS Storage | Domain storage | ~$0.30/GB |
 | **Per Execution** | | |
 | Processing (ml.t3.medium) | ~2 min | ~$0.01 |
 | Training (ml.g4dn.xlarge) | ~15 min | ~$0.20 |
+| **Per Hour (JupyterLab running)** | | |
+| ml.t3.medium | Notebook | ~$0.05 |
+
+**Tip**: Stop the JupyterLab space when not in use to minimize costs.
 
 ## Troubleshooting
 
@@ -236,6 +274,10 @@ aws sagemaker describe-pipeline-execution \
    - Stop any running training jobs
    - Delete endpoints using the models
 
+3. **S3 Bucket Not Empty**
+   - The destroy script empties the bucket automatically
+   - Manual: `aws s3 rm s3://<bucket> --recursive`
+
 ### Pipeline Fails
 
 1. **Code Not Found**
@@ -246,98 +288,58 @@ aws sagemaker describe-pipeline-execution \
    - Check `docs/sagemaker-training-quotas.md`
    - Request quota increase if needed
 
-## Migrating from Quick Setup Domain
+### JupyterLab Won't Start
 
-If you have an existing SageMaker Domain created via Quick Setup and want to manage it with CloudFormation:
-
-### Step 1: Delete Existing Domain
-
-**Warning**: This will delete all user data, notebooks, and apps in the domain.
-
-1. **Stop all running apps and spaces**
+1. **Space in wrong state**
    ```bash
-   # List domain ID
-   aws sagemaker list-domains --query "Domains[*].[DomainId,DomainName]" --output table
-
-   # Set your domain ID
-   DOMAIN_ID="d-xxxxxxxxx"
-
-   # List and delete apps
-   aws sagemaker list-apps --domain-id $DOMAIN_ID
-
-   # Delete each app (repeat for all apps)
-   aws sagemaker delete-app \
-     --domain-id $DOMAIN_ID \
-     --user-profile-name default-user \
-     --app-type JupyterServer \
-     --app-name default
+   aws sagemaker describe-space \
+     --domain-id <domain-id> \
+     --space-name ml-workspace
    ```
 
-2. **Delete spaces (if any)**
-   ```bash
-   aws sagemaker list-spaces --domain-id $DOMAIN_ID
-   aws sagemaker delete-space --domain-id $DOMAIN_ID --space-name <space-name>
-   ```
+2. **Instance quota**
+   - Check for ml.t3.medium quota in the region
+   - Try a different instance type in the parameters
 
-3. **Delete user profiles**
-   ```bash
-   aws sagemaker list-user-profiles --domain-id $DOMAIN_ID
-   aws sagemaker delete-user-profile --domain-id $DOMAIN_ID --user-profile-name default-user
-   ```
+## Educational Use
 
-4. **Delete the domain**
-   ```bash
-   aws sagemaker delete-domain --domain-id $DOMAIN_ID --retention-policy HomeEfsFileSystem=Delete
-   ```
+This infrastructure is designed for teaching ML concepts:
 
-5. **Wait for deletion** (can take 10-15 minutes)
-   ```bash
-   aws sagemaker describe-domain --domain-id $DOMAIN_ID
-   # Wait until you get "ResourceNotFound" error
-   ```
+### What Students Learn
 
-### Step 2: Deploy CloudFormation Stack
+1. **Data Generation** - How to create synthetic training data
+2. **Model Training** - Fine-tuning pre-trained models (DistilGPT2)
+3. **MLOps** - Pipeline orchestration and automation
+4. **Model Registry** - Versioning and approval workflows
+5. **Infrastructure as Code** - CloudFormation best practices
 
-```bash
-./infra/deploy-stack.sh
+### Classroom Setup
+
+For multiple students, you can:
+
+1. **Create multiple user profiles** in the same domain
+2. **Use IAM Identity Center** for SSO authentication
+3. **Create separate spaces** per student or group
+
+### Example Workflow
+
+```
+1. Instructor deploys infrastructure
+2. Students access SageMaker Studio via provided URL
+3. Students open ml-workspace JupyterLab
+4. Students download and run the example notebook
+5. Students observe pipeline execution
+6. Students modify parameters and re-run
+7. Students review model in Model Registry
 ```
 
-The CloudFormation stack creates an equivalent domain with:
-- Same Canvas settings (TimeSeriesForecasting, EMR Serverless, Bedrock, etc.)
-- Same IAM permissions
-- Same VPC configuration
-- Added: Pipeline and Model Registry for training workflow
+## Comparison: This Stack vs SageMaker Unified Studio
 
-### Step 3: Verify Resources
-
-```bash
-# Check domain
-aws sagemaker list-domains
-
-# Check user profile
-aws sagemaker list-user-profiles --domain-id <new-domain-id>
-
-# Check pipeline
-aws sagemaker list-pipelines
-```
-
-## Migrating from Python SDK Pipeline
-
-If you have a pipeline created via Python SDK:
-
-1. **Export Existing Pipeline Definition**
-   ```bash
-   aws sagemaker describe-pipeline --pipeline-name sg-finetune-pipeline --query "PipelineDefinition" --output text > pipeline.json
-   ```
-
-2. **Delete Python-Created Pipeline**
-   ```bash
-   aws sagemaker delete-pipeline --pipeline-name sg-finetune-pipeline
-   ```
-
-3. **Deploy CloudFormation Stack**
-   ```bash
-   ./infra/deploy-stack.sh
-   ```
-
-The CloudFormation stack will create a new pipeline with the same name.
+| Aspect | This Stack (Studio Classic) | Unified Studio |
+|--------|---------------------------|----------------|
+| **Setup** | CloudFormation (automated) | Console (manual) |
+| **Complexity** | Low | High |
+| **Prerequisites** | VPC only | IAM Identity Center + DataZone |
+| **Cost** | Lower | Higher (DataZone overhead) |
+| **Best For** | Learning ML fundamentals | Enterprise data governance |
+| **IaC Support** | Full | Partial |

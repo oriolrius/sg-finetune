@@ -3,6 +3,14 @@
 # Deploy SageMaker Domain CloudFormation Stack
 # =============================================================================
 #
+# This script deploys the sg-finetune infrastructure including:
+# - SageMaker Domain with IAM authentication
+# - User Profile for accessing Studio
+# - JupyterLab Space (pre-configured workspace)
+# - ML Pipeline (Generate Data -> Train -> Register)
+# - Model Registry for versioned models
+# - S3 bucket for artifacts
+#
 # Usage:
 #   ./deploy-stack.sh [--vpc-id VPC_ID] [--subnet-ids SUBNET_IDS] [--region REGION]
 #
@@ -100,23 +108,29 @@ if [ -z "${SUBNET_IDS}" ]; then
     echo "Using Subnets: ${SUBNET_IDS}"
 fi
 
-# Create S3 bucket for code artifacts (if needed)
-BUCKET_NAME="${PROJECT_NAME}-${ACCOUNT_ID}-${REGION}"
+# Deploy CloudFormation stack first (creates S3 bucket)
 echo ""
-echo "Checking S3 bucket: ${BUCKET_NAME}..."
+echo "Deploying CloudFormation stack..."
+echo "This may take 10-15 minutes..."
 
-if aws s3api head-bucket --bucket "${BUCKET_NAME}" --region ${REGION} 2>/dev/null; then
-    echo "Bucket exists."
-else
-    echo "Creating bucket..."
-    if [ "${REGION}" == "us-east-1" ]; then
-        aws s3api create-bucket --bucket "${BUCKET_NAME}" --region ${REGION}
-    else
-        aws s3api create-bucket --bucket "${BUCKET_NAME}" --region ${REGION} \
-            --create-bucket-configuration LocationConstraint=${REGION}
-    fi
-    echo "Bucket created."
-fi
+aws cloudformation deploy \
+    --template-file "${SCRIPT_DIR}/sagemaker-domain.yaml" \
+    --stack-name "${STACK_NAME}" \
+    --region ${REGION} \
+    --capabilities CAPABILITY_NAMED_IAM \
+    --parameter-overrides \
+        ProjectName="${PROJECT_NAME}" \
+        VpcId="${VPC_ID}" \
+        SubnetIds="${SUBNET_IDS}" \
+    --tags \
+        Project=${PROJECT_NAME} \
+        ManagedBy=CloudFormation
+
+echo ""
+echo "Stack deployed. Uploading code artifacts..."
+
+# S3 bucket name (created by CloudFormation)
+BUCKET_NAME="${PROJECT_NAME}-${ACCOUNT_ID}-${REGION}"
 
 # Upload pipeline code to S3
 echo ""
@@ -200,23 +214,18 @@ tar -czvf /tmp/src.tar.gz -C src .
 aws s3 cp /tmp/src.tar.gz "s3://${BUCKET_NAME}/${PROJECT_NAME}/pipeline/code/src.tar.gz" --region ${REGION}
 echo "Uploaded src.tar.gz"
 
-# Deploy CloudFormation stack
-echo ""
-echo "Deploying CloudFormation stack..."
-echo "This may take 10-15 minutes..."
+# Upload the Jupyter notebook for students
+echo "Uploading example notebook..."
+if [ -f "${PROJECT_DIR}/pipeline/sg_finetune_pipeline.ipynb" ]; then
+    aws s3 cp "${PROJECT_DIR}/pipeline/sg_finetune_pipeline.ipynb" \
+        "s3://${BUCKET_NAME}/${PROJECT_NAME}/notebooks/sg_finetune_pipeline.ipynb" --region ${REGION}
+    echo "Uploaded sg_finetune_pipeline.ipynb"
+else
+    echo "Warning: Notebook not found at pipeline/sg_finetune_pipeline.ipynb"
+fi
 
-aws cloudformation deploy \
-    --template-file "${SCRIPT_DIR}/sagemaker-domain.yaml" \
-    --stack-name "${STACK_NAME}" \
-    --region ${REGION} \
-    --capabilities CAPABILITY_NAMED_IAM \
-    --parameter-overrides \
-        ProjectName="${PROJECT_NAME}" \
-        VpcId="${VPC_ID}" \
-        SubnetIds="${SUBNET_IDS}" \
-    --tags \
-        Project=${PROJECT_NAME} \
-        ManagedBy=CloudFormation
+# Clean up temp files
+rm -rf /tmp/sg-finetune-code /tmp/src.tar.gz
 
 echo ""
 echo "============================================================"
@@ -232,18 +241,46 @@ aws cloudformation describe-stacks \
     --query "Stacks[0].Outputs[*].[OutputKey,OutputValue]" \
     --output table
 
+# Get specific URLs for instructions
+DOMAIN_ID=$(aws cloudformation describe-stacks --stack-name "${STACK_NAME}" --region ${REGION} --query "Stacks[0].Outputs[?OutputKey=='DomainId'].OutputValue" --output text)
+STUDIO_URL=$(aws cloudformation describe-stacks --stack-name "${STACK_NAME}" --region ${REGION} --query "Stacks[0].Outputs[?OutputKey=='StudioUrl'].OutputValue" --output text)
+PIPELINE_URL=$(aws cloudformation describe-stacks --stack-name "${STACK_NAME}" --region ${REGION} --query "Stacks[0].Outputs[?OutputKey=='PipelineConsoleUrl'].OutputValue" --output text)
+
 echo ""
 echo "============================================================"
-echo "Next Steps:"
+echo "STUDENT QUICK START GUIDE"
 echo "============================================================"
-echo "1. Access SageMaker Studio:"
-STUDIO_URL=$(aws cloudformation describe-stacks --stack-name "${STACK_NAME}" --region ${REGION} --query "Stacks[0].Outputs[?OutputKey=='StudioUrl'].OutputValue" --output text)
+echo ""
+echo "1. ACCESS SAGEMAKER STUDIO:"
 echo "   ${STUDIO_URL}"
 echo ""
-echo "2. View Pipeline:"
-PIPELINE_URL=$(aws cloudformation describe-stacks --stack-name "${STACK_NAME}" --region ${REGION} --query "Stacks[0].Outputs[?OutputKey=='PipelineConsoleUrl'].OutputValue" --output text)
-echo "   ${PIPELINE_URL}"
+echo "2. OPEN JUPYTERLAB:"
+echo "   - Click on 'Spaces' tab in Studio"
+echo "   - Find 'ml-workspace' space"
+echo "   - Click 'Run' to start JupyterLab"
 echo ""
-echo "3. Execute Pipeline:"
-echo "   aws sagemaker start-pipeline-execution --pipeline-name ${PROJECT_NAME}-pipeline --region ${REGION}"
+echo "3. DOWNLOAD THE NOTEBOOK:"
+echo "   In JupyterLab terminal, run:"
+echo "   aws s3 cp s3://${BUCKET_NAME}/${PROJECT_NAME}/notebooks/sg_finetune_pipeline.ipynb ."
+echo ""
+echo "4. RUN THE ML PIPELINE:"
+echo "   - Open sg_finetune_pipeline.ipynb"
+echo "   - Run all cells to execute the pipeline"
+echo "   - Monitor at: ${PIPELINE_URL}"
+echo ""
+echo "5. EXECUTE PIPELINE VIA CLI (alternative):"
+echo "   aws sagemaker start-pipeline-execution \\"
+echo "     --pipeline-name ${PROJECT_NAME}-pipeline \\"
+echo "     --region ${REGION}"
+echo ""
+echo "============================================================"
+echo "ARCHITECTURE OVERVIEW"
+echo "============================================================"
+echo ""
+echo "  ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐"
+echo "  │  GenerateData   │ ──▶ │   TrainModel    │ ──▶ │ RegisterModel   │"
+echo "  │  (Processing)   │     │   (Training)    │     │   (Registry)    │"
+echo "  └─────────────────┘     └─────────────────┘     └─────────────────┘"
+echo "       ml.t3.medium         ml.g4dn.xlarge        Model Package Group"
+echo ""
 echo "============================================================"
