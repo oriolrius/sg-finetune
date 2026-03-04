@@ -2,11 +2,6 @@
 
 Fine-tune DistilGPT2 on SageMaker to learn Catalan greeting responses.
 
-> **Branch `feature/cloudformation-sagemaker-domain`** adds:
-> - **CloudFormation stack** (`infra/sagemaker-domain.yaml`) for SageMaker Domain deployment
-> - **SageMaker Pipeline** (`pipeline/`) as native alternative to GitHub Actions
-> - **Documentation** for instance quotas and resource discovery via CLI
-
 ## Overview
 
 This project trains DistilGPT2 to respond "Serà per tu!" when given "bon dia" (and variations). It uses SageMaker for training and registers the model in SageMaker Model Registry.
@@ -67,6 +62,9 @@ sg-finetune/
 │   └── destroy.yml        # Cleanup resources
 ├── data/
 │   └── generate_dataset.py # Generate synthetic training data
+├── docs/
+│   ├── sagemaker-training-quotas.md   # Instance quota information
+│   └── sagemaker-domain-discovery.md  # CLI commands reference
 ├── src/
 │   ├── train.py           # SageMaker training script
 │   └── requirements.txt   # Training dependencies
@@ -74,8 +72,15 @@ sg-finetune/
 │   ├── start_training.py  # Launch training job locally
 │   ├── register_model.py  # Register model in registry
 │   └── test_model.py      # Test registered model
-├── infra/
-│   └── sagemaker-role.yaml # IAM role CloudFormation
+├── pipeline/              # SageMaker Pipeline (new)
+│   ├── definition.py      # Pipeline definition
+│   ├── deploy_pipeline.py # Deploy to SageMaker
+│   └── run_pipeline.py    # Execute and monitor
+├── infra/                 # Infrastructure as Code (expanded)
+│   ├── sagemaker-domain.yaml  # Full SageMaker Domain stack
+│   ├── sagemaker-role.yaml    # IAM role (legacy)
+│   ├── deploy-stack.sh    # Deploy infrastructure
+│   └── destroy-stack.sh   # Cleanup infrastructure
 └── pyproject.toml         # Project configuration
 ```
 
@@ -225,3 +230,52 @@ python scripts/test_model.py --input "bon dia" --input "hola, bon dia!"
 ## Tags
 
 `sagemaker` `fine-tuning` `distilgpt2` `catalan` `huggingface`
+
+---
+
+## Changelog
+
+### Unreleased (since v0.1.0)
+
+#### New Features
+
+**Infrastructure as Code (`infra/`)**
+- `sagemaker-domain.yaml` - Complete CloudFormation stack for SageMaker Domain deployment
+- `deploy-stack.sh` / `destroy-stack.sh` - One-command infrastructure management
+- Creates: SageMaker Domain, IAM roles, S3 bucket, Model Registry
+
+```bash
+# Deploy complete infrastructure
+./infra/deploy-stack.sh
+
+# Tear down everything
+./infra/destroy-stack.sh
+```
+
+**SageMaker Pipeline (`pipeline/`)**
+- Native SageMaker orchestration as alternative to GitHub Actions
+- 3-step pipeline: GenerateDataset → TrainModel → RegisterModel
+- Configurable parameters at runtime (epochs, batch size, instance type)
+
+```bash
+# Deploy and run pipeline
+python pipeline/deploy_pipeline.py
+python pipeline/run_pipeline.py --action execute
+```
+
+See [pipeline/README.md](pipeline/README.md) for full documentation.
+
+**Documentation (`docs/`)**
+- `sagemaker-training-quotas.md` - Available EC2 instance types and quotas
+- `sagemaker-domain-discovery.md` - CLI commands for SageMaker resource management
+
+#### Changes from v0.1.0
+
+| Component | v0.1.0 | Current |
+|-----------|--------|---------|
+| Training | GitHub Actions only | GitHub Actions + SageMaker Pipeline |
+| Infrastructure | IAM role only | Full Domain + IAM + S3 |
+| Documentation | README + CLAUDE.md | + quota guide, CLI reference |
+| `infra/` | `sagemaker-role.yaml` | + `sagemaker-domain.yaml`, scripts |
+
+For the initial release notes, see [v0.1.0](https://github.com/oriolrius/sg-finetune/releases/tag/v0.1.0).
