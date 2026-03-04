@@ -235,7 +235,7 @@ python scripts/test_model.py --input "bon dia" --input "hola, bon dia!"
 
 ## Changelog
 
-### Unreleased (since v0.1.0)
+### v0.2.0
 
 #### New Features
 
