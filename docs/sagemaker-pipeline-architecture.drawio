@@ -1,0 +1,267 @@
+<mxfile host="app.diagrams.net" modified="2026-03-04T12:00:00.000Z" agent="Claude" version="24.7.17">
+  <diagram id="sagemaker-pipeline" name="SageMaker Pipeline Architecture">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- Title -->
+        <mxCell id="title" value="sg-finetune: SageMaker Pipeline Architecture" style="text;html=1;align=center;verticalAlign=middle;fontSize=24;fontStyle=1;fontColor=#232F3E;" vertex="1" parent="1">
+          <mxGeometry x="275" y="20" width="550" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- CloudFormation Infrastructure Box -->
+        <mxCell id="cfn-box" value="" style="rounded=1;arcSize=5;whiteSpace=wrap;html=1;fillColor=#F2F3F4;strokeColor=#232F3E;strokeWidth=2;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="1020" height="700" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="cfn-label" value="CloudFormation Stack (sagemaker-domain.yaml)" style="text;html=1;align=left;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#232F3E;" vertex="1" parent="1">
+          <mxGeometry x="60" y="90" width="350" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- SageMaker Domain Box -->
+        <mxCell id="domain-box" value="" style="rounded=1;arcSize=5;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#FF9900;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="60" y="130" width="980" height="380" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="domain-label" value="SageMaker Domain" style="text;html=1;align=left;verticalAlign=middle;fontSize=16;fontStyle=1;fontColor=#FF9900;" vertex="1" parent="1">
+          <mxGeometry x="80" y="140" width="200" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- Pipeline Container -->
+        <mxCell id="pipeline-box" value="" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#E7F3FF;strokeColor=#147EB4;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="80" y="180" width="940" height="310" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="pipeline-label" value="SageMaker Pipeline: sg-finetune-pipeline" style="text;html=1;align=left;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#147EB4;" vertex="1" parent="1">
+          <mxGeometry x="100" y="190" width="350" height="25" as="geometry"/>
+        </mxCell>
+
+        <!-- Step 1: GenerateDataset -->
+        <mxCell id="step1-box" value="" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="120" y="240" width="200" height="120" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="step1-icon" value="⚙️" style="text;html=1;align=center;verticalAlign=middle;fontSize=28;" vertex="1" parent="1">
+          <mxGeometry x="195" y="250" width="50" height="40" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="step1-title" value="1. GenerateDataset" style="text;html=1;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#2E7D32;" vertex="1" parent="1">
+          <mxGeometry x="120" y="290" width="200" height="25" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="step1-desc" value="Processing Step&lt;br&gt;Creates Catalan greeting dataset" style="text;html=1;align=center;verticalAlign=middle;fontSize=11;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="120" y="315" width="200" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- Step 2: TrainModel -->
+        <mxCell id="step2-box" value="" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="450" y="240" width="200" height="120" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="step2-icon" value="🤖" style="text;html=1;align=center;verticalAlign=middle;fontSize=28;" vertex="1" parent="1">
+          <mxGeometry x="525" y="250" width="50" height="40" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="step2-title" value="2. TrainModel" style="text;html=1;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#1565C0;" vertex="1" parent="1">
+          <mxGeometry x="450" y="290" width="200" height="25" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="step2-desc" value="Training Step&lt;br&gt;Fine-tunes DistilGPT2&lt;br&gt;(HuggingFace + ml.g4dn.xlarge)" style="text;html=1;align=center;verticalAlign=middle;fontSize=11;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="450" y="315" width="200" height="45" as="geometry"/>
+        </mxCell>
+
+        <!-- Step 3: RegisterModel -->
+        <mxCell id="step3-box" value="" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="780" y="240" width="200" height="120" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="step3-icon" value="📦" style="text;html=1;align=center;verticalAlign=middle;fontSize=28;" vertex="1" parent="1">
+          <mxGeometry x="855" y="250" width="50" height="40" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="step3-title" value="3. RegisterModel" style="text;html=1;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#6A1B9A;" vertex="1" parent="1">
+          <mxGeometry x="780" y="290" width="200" height="25" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="step3-desc" value="Model Step&lt;br&gt;Registers in Model Registry&lt;br&gt;(PendingManualApproval)" style="text;html=1;align=center;verticalAlign=middle;fontSize=11;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="780" y="315" width="200" height="45" as="geometry"/>
+        </mxCell>
+
+        <!-- Connectors between steps -->
+        <mxCell id="conn1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=3;strokeColor=#82B366;endArrow=blockThin;endFill=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="step1-box" target="step2-box">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="conn1-label" value="train.jsonl" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=11;fontStyle=2;fontColor=#666666;" vertex="1" connectable="0" parent="conn1">
+          <mxGeometry x="-0.1" y="0" relative="1" as="geometry">
+            <mxPoint y="-15" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="conn2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=3;strokeColor=#6C8EBF;endArrow=blockThin;endFill=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="step2-box" target="step3-box">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="conn2-label" value="model.tar.gz" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=11;fontStyle=2;fontColor=#666666;" vertex="1" connectable="0" parent="conn2">
+          <mxGeometry x="-0.1" y="0" relative="1" as="geometry">
+            <mxPoint y="-15" as="offset"/>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Parameters Box -->
+        <mxCell id="params-box" value="" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="120" y="400" width="300" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="params-title" value="Pipeline Parameters" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#D6B656;" vertex="1" parent="1">
+          <mxGeometry x="130" y="405" width="150" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="params-content" value="NumExamples=500 | Epochs=5 | BatchSize=8&lt;br&gt;InstanceType=ml.g4dn.xlarge" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="130" y="425" width="280" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- S3 Bucket -->
+        <mxCell id="s3-box" value="" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#569A31;strokeColor=#3F7829;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="60" y="540" width="300" height="100" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="s3-icon" value="🪣" style="text;html=1;align=center;verticalAlign=middle;fontSize=32;" vertex="1" parent="1">
+          <mxGeometry x="80" y="560" width="50" height="50" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="s3-title" value="S3 Bucket" style="text;html=1;align=left;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="130" y="555" width="100" height="25" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="s3-desc" value="sg-finetune-{account}-{region}&lt;br&gt;• /data/ - Training datasets&lt;br&gt;• /models/ - Model artifacts" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="130" y="580" width="220" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- Model Registry -->
+        <mxCell id="registry-box" value="" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#9673A6;strokeColor=#6A1B9A;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="400" y="540" width="300" height="100" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="registry-icon" value="📋" style="text;html=1;align=center;verticalAlign=middle;fontSize=32;" vertex="1" parent="1">
+          <mxGeometry x="420" y="560" width="50" height="50" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="registry-title" value="Model Registry" style="text;html=1;align=left;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="470" y="555" width="150" height="25" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="registry-desc" value="sg-finetune-distilgpt2&lt;br&gt;• Versioned model packages&lt;br&gt;• Approval workflow" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="470" y="580" width="220" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- IAM Role -->
+        <mxCell id="iam-box" value="" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#DD3522;strokeColor=#C7291A;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="740" y="540" width="300" height="100" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="iam-icon" value="🔐" style="text;html=1;align=center;verticalAlign=middle;fontSize=32;" vertex="1" parent="1">
+          <mxGeometry x="760" y="560" width="50" height="50" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="iam-title" value="IAM Execution Role" style="text;html=1;align=left;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="810" y="555" width="150" height="25" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="iam-desc" value="sg-finetune-sagemaker-role&lt;br&gt;• SageMaker full access&lt;br&gt;• S3 read/write" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="810" y="580" width="220" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- Connectors to S3 -->
+        <mxCell id="s3-conn1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#569A31;dashed=1;dashPattern=5 5;endArrow=none;startArrow=classic;startFill=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.3;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="step1-box" target="s3-box">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="220" y="420"/>
+              <mxPoint x="220" y="520"/>
+              <mxPoint x="150" y="520"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="s3-conn2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#569A31;dashed=1;dashPattern=5 5;endArrow=classic;endFill=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.7;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="step2-box" target="s3-box">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="550" y="420"/>
+              <mxPoint x="550" y="520"/>
+              <mxPoint x="270" y="520"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Connector to Registry -->
+        <mxCell id="reg-conn" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#9673A6;endArrow=classic;endFill=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="step3-box" target="registry-box">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="880" y="420"/>
+              <mxPoint x="880" y="510"/>
+              <mxPoint x="550" y="510"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Legend -->
+        <mxCell id="legend-box" value="" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#CCCCCC;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="660" width="400" height="100" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="legend-title" value="Legend" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="70" y="665" width="80" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="legend-proc" value="" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="690" width="20" height="15" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend-proc-text" value="Processing" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="95" y="688" width="70" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="legend-train" value="" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="170" y="690" width="20" height="15" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend-train-text" value="Training" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="195" y="688" width="60" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="legend-model" value="" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="260" y="690" width="20" height="15" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend-model-text" value="Model Registry" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="285" y="688" width="90" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="legend-storage" value="" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#569A31;strokeColor=#3F7829;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="720" width="20" height="15" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend-storage-text" value="S3 Storage" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="95" y="718" width="70" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="legend-iam" value="" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#DD3522;strokeColor=#C7291A;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="170" y="720" width="20" height="15" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend-iam-text" value="IAM" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="195" y="718" width="40" height="20" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="legend-cfn" value="" style="rounded=1;arcSize=10;whiteSpace=wrap;html=1;fillColor=#F2F3F4;strokeColor=#232F3E;strokeWidth=1;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="260" y="720" width="20" height="15" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend-cfn-text" value="CloudFormation" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="285" y="718" width="100" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- Version info -->
+        <mxCell id="version" value="sg-finetune v0.3.0" style="text;html=1;align=right;verticalAlign=middle;fontSize=10;fontColor=#999999;" vertex="1" parent="1">
+          <mxGeometry x="920" y="750" width="120" height="20" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

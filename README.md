@@ -6,6 +6,10 @@ Fine-tune DistilGPT2 on SageMaker to learn Catalan greeting responses.
 
 This project trains DistilGPT2 to respond "Serà per tu!" when given "bon dia" (and variations). It uses SageMaker Pipeline for training orchestration and registers models in SageMaker Model Registry.
 
+## Architecture
+
+![SageMaker Pipeline Architecture](docs/sagemaker-pipeline-architecture.png)
+
 ## Quick Start
 
 ### Prerequisites
@@ -157,6 +161,10 @@ See [docs/sagemaker-domain-discovery.md](docs/sagemaker-domain-discovery.md) for
 ---
 
 ## Changelog
+
+### v0.3.1
+
+- Add SageMaker Pipeline architecture diagram to README
 
 ### v0.3.0
 
