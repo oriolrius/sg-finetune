@@ -190,7 +190,7 @@ def delete_pipeline(args):
 
 def main():
     parser = argparse.ArgumentParser(description="SageMaker Pipeline runner for sg-finetune")
-    parser.add_argument("--region", type=str, default="eu-north-1", help="AWS region")
+    parser.add_argument("--region", type=str, default="eu-west-1", help="AWS region")
     parser.add_argument("--role", type=str, help="IAM role ARN (optional)")
     parser.add_argument("--bucket", type=str, help="S3 bucket (optional)")
     parser.add_argument(

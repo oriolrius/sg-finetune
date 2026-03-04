@@ -72,7 +72,7 @@ cd sg-finetune
 export AWS_ACCESS_KEY_ID="ASIA..."
 export AWS_SECRET_ACCESS_KEY="..."
 export AWS_SESSION_TOKEN="..."
-export AWS_DEFAULT_REGION="eu-north-1"
+export AWS_DEFAULT_REGION="eu-west-1"
 ```
 
 5. Verify credentials:
@@ -91,7 +91,7 @@ Set up AWS credentials for GitHub Actions:
 gh secret set AWS_ACCESS_KEY_ID --body "$AWS_ACCESS_KEY_ID"
 gh secret set AWS_SECRET_ACCESS_KEY --body "$AWS_SECRET_ACCESS_KEY"
 gh secret set AWS_SESSION_TOKEN --body "$AWS_SESSION_TOKEN"
-gh secret set AWS_REGION --body "eu-north-1"
+gh secret set AWS_REGION --body "eu-west-1"
 ```
 
 > **Note:** Sandbox credentials expire every few hours. You may need to refresh them before running the workflow.
@@ -244,7 +244,7 @@ After training completes, check that your model was registered:
 ```bash
 aws sagemaker list-model-packages \
   --model-package-group-name sg-finetune-distilgpt2 \
-  --region eu-north-1
+  --region eu-west-1
 ```
 
 You should see a model with status `PendingManualApproval`.

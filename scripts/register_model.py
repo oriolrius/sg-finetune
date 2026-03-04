@@ -84,7 +84,7 @@ def get_inference_image(region: str) -> str:
         "us-east-1": "763104351884",
         "us-west-2": "763104351884",
         "eu-west-1": "763104351884",
-        "eu-north-1": "763104351884",
+        "eu-west-1": "763104351884",
         "ap-northeast-1": "763104351884",
     }
 
@@ -189,7 +189,7 @@ def register_model(
 
 def main():
     parser = argparse.ArgumentParser(description="Register model in SageMaker Model Registry")
-    parser.add_argument("--region", type=str, default="eu-north-1", help="AWS region")
+    parser.add_argument("--region", type=str, default="eu-west-1", help="AWS region")
     parser.add_argument(
         "--training-job-name", type=str, required=True, help="Training job name"
     )

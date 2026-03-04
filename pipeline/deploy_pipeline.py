@@ -21,7 +21,7 @@ from sagemaker.workflow.step_collections import RegisterModel
 
 def main():
     # Configuration
-    REGION = "eu-north-1"
+    REGION = "eu-west-1"
     PIPELINE_NAME = "sg-finetune-pipeline"
     BASE_JOB_PREFIX = "sg-finetune"
 
@@ -168,7 +168,7 @@ def main():
     # Get inference container image
     # Use the HuggingFace inference container directly
     inference_image = (
-        "763104351884.dkr.ecr.eu-north-1.amazonaws.com/"
+        "763104351884.dkr.ecr.eu-west-1.amazonaws.com/"
         "huggingface-pytorch-inference:2.1.0-transformers4.37.0-cpu-py310-ubuntu22.04"
     )
 

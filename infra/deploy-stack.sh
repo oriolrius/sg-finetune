@@ -17,7 +17,7 @@ set -e
 # Default values
 STACK_NAME="sg-finetune-infrastructure"
 PROJECT_NAME="sg-finetune"
-REGION="${AWS_REGION:-eu-north-1}"
+REGION="${AWS_REGION:-eu-west-1}"
 VPC_ID=""
 SUBNET_IDS=""
 
@@ -46,7 +46,7 @@ while [[ $# -gt 0 ]]; do
             echo "Options:"
             echo "  --vpc-id       VPC ID for SageMaker Domain"
             echo "  --subnet-ids   Comma-separated subnet IDs"
-            echo "  --region       AWS region (default: eu-north-1)"
+            echo "  --region       AWS region (default: eu-west-1)"
             echo "  --stack-name   CloudFormation stack name (default: sg-finetune-infrastructure)"
             exit 0
             ;;

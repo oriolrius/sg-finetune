@@ -125,7 +125,7 @@ python pipeline/run_pipeline.py --action delete
 
 Or visit directly:
 ```
-https://eu-north-1.console.aws.amazon.com/sagemaker/home?region=eu-north-1#/pipelines/sg-finetune-pipeline
+https://eu-west-1.console.aws.amazon.com/sagemaker/home?region=eu-west-1#/pipelines/sg-finetune-pipeline
 ```
 
 ## Cost Estimate

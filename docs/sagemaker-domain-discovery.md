@@ -1,6 +1,6 @@
 # SageMaker Domain Resource Discovery
 
-> **Region**: eu-north-1 (Stockholm)
+> **Region**: eu-west-1 (Stockholm)
 > **Account**: 753916465480
 > **Generated**: 2026-01-22
 
@@ -22,7 +22,7 @@ aws sts get-caller-identity
 List all SageMaker domains in the region:
 
 ```bash
-aws sagemaker list-domains --region eu-north-1
+aws sagemaker list-domains --region eu-west-1
 ```
 
 Get detailed information about a specific domain:
@@ -30,7 +30,7 @@ Get detailed information about a specific domain:
 ```bash
 aws sagemaker describe-domain \
   --domain-id d-8sbcrtiseq5b \
-  --region eu-north-1
+  --region eu-west-1
 ```
 
 **Key fields returned:**
@@ -48,7 +48,7 @@ List all user profiles in a domain:
 ```bash
 aws sagemaker list-user-profiles \
   --domain-id d-8sbcrtiseq5b \
-  --region eu-north-1
+  --region eu-west-1
 ```
 
 Get details about a specific user profile:
@@ -57,7 +57,7 @@ Get details about a specific user profile:
 aws sagemaker describe-user-profile \
   --domain-id d-8sbcrtiseq5b \
   --user-profile-name default-20260122T174393 \
-  --region eu-north-1
+  --region eu-west-1
 ```
 
 **Key fields returned:**
@@ -72,7 +72,7 @@ Spaces are shared or private environments within a domain:
 ```bash
 aws sagemaker list-spaces \
   --domain-id d-8sbcrtiseq5b \
-  --region eu-north-1
+  --region eu-west-1
 ```
 
 Get details about a specific space:
@@ -81,7 +81,7 @@ Get details about a specific space:
 aws sagemaker describe-space \
   --domain-id d-8sbcrtiseq5b \
   --space-name sg-test \
-  --region eu-north-1
+  --region eu-west-1
 ```
 
 **Key fields returned:**
@@ -96,7 +96,7 @@ Apps are the actual compute instances (JupyterLab, Code Editor, etc.):
 ```bash
 aws sagemaker list-apps \
   --domain-id d-8sbcrtiseq5b \
-  --region eu-north-1
+  --region eu-west-1
 ```
 
 Get details about a specific app:
@@ -107,7 +107,7 @@ aws sagemaker describe-app \
   --app-type JupyterLab \
   --app-name default \
   --space-name sg-test \
-  --region eu-north-1
+  --region eu-west-1
 ```
 
 **Key fields returned:**
@@ -120,7 +120,7 @@ aws sagemaker describe-app \
 List all inference endpoints:
 
 ```bash
-aws sagemaker list-endpoints --region eu-north-1
+aws sagemaker list-endpoints --region eu-west-1
 ```
 
 Get details about a specific endpoint:
@@ -128,7 +128,7 @@ Get details about a specific endpoint:
 ```bash
 aws sagemaker describe-endpoint \
   --endpoint-name huggingface-pytorch-tgi-inference-2026-01-22-17-51-58-027 \
-  --region eu-north-1
+  --region eu-west-1
 ```
 
 **Key fields returned:**
@@ -145,7 +145,7 @@ For more details about the endpoint setup:
 # First, get the config name from describe-endpoint
 aws sagemaker describe-endpoint-config \
   --endpoint-config-name <config-name-from-endpoint> \
-  --region eu-north-1
+  --region eu-west-1
 ```
 
 **Key fields returned:**
@@ -157,7 +157,7 @@ aws sagemaker describe-endpoint-config \
 List registered models (not Model Registry, but endpoint models):
 
 ```bash
-aws sagemaker list-models --region eu-north-1
+aws sagemaker list-models --region eu-west-1
 ```
 
 Describe a specific model:
@@ -165,7 +165,7 @@ Describe a specific model:
 ```bash
 aws sagemaker describe-model \
   --model-name <model-name> \
-  --region eu-north-1
+  --region eu-west-1
 ```
 
 ## 8. Access SageMaker Studio
@@ -177,13 +177,13 @@ Generate a presigned URL to access SageMaker Studio:
 aws sagemaker create-presigned-domain-url \
   --domain-id d-8sbcrtiseq5b \
   --user-profile-name default-20260122T174393 \
-  --region eu-north-1
+  --region eu-west-1
 
 # For a space
 aws sagemaker create-presigned-domain-url \
   --domain-id d-8sbcrtiseq5b \
   --space-name sg-test \
-  --region eu-north-1
+  --region eu-west-1
 ```
 
 The returned `AuthorizedUrl` is valid for 5 minutes and provides authenticated access to the Studio UI.
@@ -194,7 +194,7 @@ List recent training jobs:
 
 ```bash
 aws sagemaker list-training-jobs \
-  --region eu-north-1 \
+  --region eu-west-1 \
   --sort-by CreationTime \
   --sort-order Descending \
   --max-results 10
@@ -205,7 +205,7 @@ Get details about a specific job:
 ```bash
 aws sagemaker describe-training-job \
   --training-job-name <job-name> \
-  --region eu-north-1
+  --region eu-west-1
 ```
 
 ## 10. Cleanup Commands
@@ -215,7 +215,7 @@ aws sagemaker describe-training-job \
 ```bash
 aws sagemaker delete-endpoint \
   --endpoint-name huggingface-pytorch-tgi-inference-2026-01-22-17-51-58-027 \
-  --region eu-north-1
+  --region eu-west-1
 ```
 
 ### Delete an App (JupyterLab instance)
@@ -226,7 +226,7 @@ aws sagemaker delete-app \
   --app-type JupyterLab \
   --app-name default \
   --space-name sg-test \
-  --region eu-north-1
+  --region eu-west-1
 ```
 
 ### Delete a Space
@@ -235,7 +235,7 @@ aws sagemaker delete-app \
 aws sagemaker delete-space \
   --domain-id d-8sbcrtiseq5b \
   --space-name sg-test \
-  --region eu-north-1
+  --region eu-west-1
 ```
 
 ## Complete Discovery Script
@@ -244,7 +244,7 @@ Here's a script to discover all resources in a domain:
 
 ```bash
 #!/bin/bash
-REGION="eu-north-1"
+REGION="eu-west-1"
 
 echo "=== SageMaker Domains ==="
 aws sagemaker list-domains --region $REGION --output table

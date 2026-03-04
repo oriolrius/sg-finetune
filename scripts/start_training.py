@@ -177,7 +177,7 @@ def start_training(
 
 def main():
     parser = argparse.ArgumentParser(description="Start SageMaker training job")
-    parser.add_argument("--region", type=str, default="eu-north-1", help="AWS region")
+    parser.add_argument("--region", type=str, default="eu-west-1", help="AWS region")
     parser.add_argument("--bucket", type=str, required=True, help="S3 bucket name")
     parser.add_argument("--data-dir", type=str, default="data", help="Local data directory")
     parser.add_argument(

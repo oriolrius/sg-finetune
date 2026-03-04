@@ -178,7 +178,7 @@ def test_inference(model_dir: str, test_inputs: list[str]) -> None:
 
 def main():
     parser = argparse.ArgumentParser(description="Test registered model")
-    parser.add_argument("--region", type=str, default="eu-north-1", help="AWS region")
+    parser.add_argument("--region", type=str, default="eu-west-1", help="AWS region")
     parser.add_argument(
         "--group-name",
         type=str,

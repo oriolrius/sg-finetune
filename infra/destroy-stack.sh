@@ -21,7 +21,7 @@ set -e
 # Default values
 STACK_NAME="sg-finetune-infrastructure"
 PROJECT_NAME="sg-finetune"
-REGION="${AWS_REGION:-eu-north-1}"
+REGION="${AWS_REGION:-eu-west-1}"
 FORCE=false
 
 # Parse arguments
@@ -43,7 +43,7 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: $0 [--region REGION] [--stack-name NAME] [--force]"
             echo ""
             echo "Options:"
-            echo "  --region       AWS region (default: eu-north-1)"
+            echo "  --region       AWS region (default: eu-west-1)"
             echo "  --stack-name   CloudFormation stack name (default: sg-finetune-infrastructure)"
             echo "  --force        Skip confirmation prompt"
             exit 0

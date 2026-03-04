@@ -10,6 +10,18 @@ This project trains DistilGPT2 to respond "Serà per tu!" when given "bon dia" (
 
 ![SageMaker Pipeline Architecture](docs/sagemaker-pipeline-architecture.png)
 
+The architecture consists of:
+
+- **CloudFormation Stack** - Deploys all infrastructure via `sagemaker-domain.yaml`
+- **SageMaker Domain** - Provides the ML environment for running pipelines
+- **SageMaker Pipeline** - Orchestrates the 3-step training workflow:
+  1. **GenerateDataset** - Processing step that creates synthetic Catalan greeting data
+  2. **TrainModel** - Training step that fine-tunes DistilGPT2 on ml.g4dn.xlarge
+  3. **RegisterModel** - Registers the trained model in Model Registry
+- **S3 Bucket** - Stores training data (`/data/`) and model artifacts (`/models/`)
+- **Model Registry** - Versions models with approval workflow (PendingManualApproval)
+- **IAM Execution Role** - Provides SageMaker and S3 permissions
+
 ## Quick Start
 
 ### Prerequisites
@@ -143,13 +155,13 @@ Models are registered in the `sg-finetune-distilgpt2` model package group.
 # List models
 aws sagemaker list-model-packages \
   --model-package-group-name sg-finetune-distilgpt2 \
-  --region eu-north-1
+  --region eu-west-1
 
 # Approve a model
 aws sagemaker update-model-package \
   --model-package-arn "<arn>" \
   --model-approval-status Approved \
-  --region eu-north-1
+  --region eu-west-1
 ```
 
 See [docs/sagemaker-domain-discovery.md](docs/sagemaker-domain-discovery.md) for complete CLI reference.
@@ -161,6 +173,11 @@ See [docs/sagemaker-domain-discovery.md](docs/sagemaker-domain-discovery.md) for
 ---
 
 ## Changelog
+
+### v0.3.2
+
+- Add architecture description to README
+- Change default region from eu-north-1 to eu-west-1
 
 ### v0.3.1
 

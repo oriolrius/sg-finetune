@@ -154,7 +154,7 @@ aws cloudformation describe-stacks \
 # Start pipeline with defaults
 aws sagemaker start-pipeline-execution \
   --pipeline-name sg-finetune-pipeline \
-  --region eu-north-1
+  --region eu-west-1
 
 # Start with custom parameters
 aws sagemaker start-pipeline-execution \
@@ -163,7 +163,7 @@ aws sagemaker start-pipeline-execution \
     {"Name": "NumExamples", "Value": "200"},
     {"Name": "Epochs", "Value": "3"}
   ]' \
-  --region eu-north-1
+  --region eu-west-1
 ```
 
 ### Monitor Pipeline
@@ -172,12 +172,12 @@ aws sagemaker start-pipeline-execution \
 # List executions
 aws sagemaker list-pipeline-executions \
   --pipeline-name sg-finetune-pipeline \
-  --region eu-north-1
+  --region eu-west-1
 
 # Get execution details
 aws sagemaker describe-pipeline-execution \
   --pipeline-execution-arn <execution-arn> \
-  --region eu-north-1
+  --region eu-west-1
 ```
 
 ## Comparison: CloudFormation vs Python SDK

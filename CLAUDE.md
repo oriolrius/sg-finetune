@@ -98,7 +98,7 @@ The primary way to run training workflows:
 
 **View in SageMaker Studio:**
 - Pipeline Name: `sg-finetune-pipeline`
-- URL: `https://eu-north-1.console.aws.amazon.com/sagemaker/home?region=eu-north-1#/pipelines/sg-finetune-pipeline`
+- URL: `https://eu-west-1.console.aws.amazon.com/sagemaker/home?region=eu-west-1#/pipelines/sg-finetune-pipeline`
 
 ### 5. Infrastructure (`infra/`)
 CloudFormation-based infrastructure management:
@@ -168,7 +168,7 @@ cz bump --dry-run                      # Preview version bump
 - Model artifacts as `model.tar.gz`
 
 ### AWS Resources
-- Region: `eu-north-1` (configurable)
+- Region: `eu-west-1` (configurable)
 - IAM Role: `sg-finetune-sagemaker-role`
 - S3 Bucket: `sg-finetune-{account_id}-{region}`
 - Model Package Group: `sg-finetune-models`
@@ -220,7 +220,7 @@ python data/generate_dataset.py --num-examples 500 --output-dir ./data
 ### Start Training Locally
 ```bash
 python scripts/start_training.py \
-  --region eu-north-1 \
+  --region eu-west-1 \
   --instance-type ml.g4dn.xlarge \
   --epochs 5 \
   --batch-size 8

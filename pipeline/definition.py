@@ -22,7 +22,7 @@ from sagemaker.workflow.step_collections import RegisterModel
 
 
 def get_pipeline(
-    region: str = "eu-north-1",
+    region: str = "eu-west-1",
     role: str = None,
     default_bucket: str = None,
     pipeline_name: str = "sg-finetune-pipeline",
@@ -214,7 +214,7 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="SageMaker Pipeline for sg-finetune")
-    parser.add_argument("--region", type=str, default="eu-north-1", help="AWS region")
+    parser.add_argument("--region", type=str, default="eu-west-1", help="AWS region")
     parser.add_argument("--role", type=str, help="IAM role ARN")
     parser.add_argument("--bucket", type=str, help="S3 bucket")
     parser.add_argument(

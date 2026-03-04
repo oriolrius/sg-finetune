@@ -1,6 +1,6 @@
-# SageMaker Training Job Quotas - eu-north-1
+# SageMaker Training Job Quotas - eu-west-1
 
-> **Region**: eu-north-1 (Stockholm)
+> **Region**: eu-west-1 (Stockholm)
 > **Account**: 753916465480
 > **Generated**: 2026-01-22
 > **Source**: Applied Service Quotas (account-specific)
@@ -206,7 +206,7 @@ To request quota increases for other instance types:
    # Get quota code for desired instance
    aws service-quotas list-service-quotas \
      --service-code sagemaker \
-     --region eu-north-1 \
+     --region eu-west-1 \
      --query "Quotas[?contains(QuotaName, 'ml.g5.xlarge')].QuotaCode"
 
    # Request increase
@@ -214,7 +214,7 @@ To request quota increases for other instance types:
      --service-code sagemaker \
      --quota-code L-XXXXXXXX \
      --desired-value 1 \
-     --region eu-north-1
+     --region eu-west-1
    ```
 
 ### Recommended Quota Increase Requests
