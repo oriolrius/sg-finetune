@@ -171,6 +171,7 @@ def get_pipeline(
         py_version="py310",
         image_scope="inference",
         instance_type="ml.m5.xlarge",
+        base_framework_version="pytorch2.1.0",  # Required for HuggingFace images
     )
 
     step_register = RegisterModel(
