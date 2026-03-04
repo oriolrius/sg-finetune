@@ -287,11 +287,17 @@ gh workflow run destroy.yml \
 
 ## Deliverables
 
-Submit the following to eCampus:
+Submit a **single PDF file** to eCampus containing:
 
-1. **Repository link** - URL to your forked repository
-2. **Screenshot of registered model** - AWS CLI output showing your model in the registry
-3. **Screenshot of test results** - Output from `test_model.py` with your custom inputs
+1. **Your domain description** - What use case did you choose and why?
+2. **Dataset design** - List your input variations and response variations
+3. **Code changes** - Screenshot or snippet of your modified `generate_dataset.py`
+4. **Training evidence** - Screenshot of successful GitHub Actions workflow run
+5. **Model registration** - Screenshot of AWS CLI output showing your model in the registry
+6. **Test results** - Screenshot of `test_model.py` output with your custom inputs
+7. **Brief reflection** (2-3 sentences) - What did you learn? What would you do differently?
+
+**File format:** `<SURNAME>_<NAME>_SageMaker_Homework.pdf`
 
 ---
 
